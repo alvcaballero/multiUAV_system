@@ -36,6 +36,7 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   sensor_msgs
+  std_msgs
 )
 
 
@@ -45,7 +46,7 @@ generate_messages(
 catkin_package(
   # INCLUDE_DIRS
   # LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS sensor_msgs
+  CATKIN_DEPENDS sensor_msgs std_msgs
 #  DEPENDS system_lib
 )
 

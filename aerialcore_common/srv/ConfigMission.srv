@@ -9,5 +9,8 @@ int8 yawMode
 int8 traceMode
 int8 gimbalPitchMode
 int8 finishAction
+#actions
+std_msgs/Float64MultiArray commandList
+std_msgs/Float64MultiArray commandParameter 
 ---
 bool success

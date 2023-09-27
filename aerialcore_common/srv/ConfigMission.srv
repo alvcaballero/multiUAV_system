@@ -3,8 +3,10 @@ sensor_msgs/NavSatFix[] waypoint
 float64 radius
 float64 maxVel
 float64 idleVel
+
 std_msgs/Float64MultiArray yaw
 std_msgs/Float64MultiArray gimbalPitch 
+std_msgs/Float64MultiArray speed
 int8 yawMode
 int8 traceMode
 int8 gimbalPitchMode

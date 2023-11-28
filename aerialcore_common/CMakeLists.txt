@@ -26,6 +26,9 @@ add_message_files(
 add_service_files(
   FILES
   ConfigMission.srv
+  finishGetFiles.srv
+  finishMission.srv
+
 )
 
 ## Generate actions in the 'action' folder

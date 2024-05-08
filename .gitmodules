@@ -1,7 +1,7 @@
 [submodule "multiuav_gui"]
 	path = multiuav_gui
 	url = https://github.com/alvcaballero/multiuav_gui.git
-	branch = react
+	branch = master
 [submodule "onboard_dji"]
 	path = onboard_dji
 	url = https://github.com/alvcaballero/onboard_dji.git

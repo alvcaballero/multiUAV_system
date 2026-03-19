@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>aerialcore_common</name>
+  <name>multiuav_interfaces</name>
   <version>0.0.1</version>
-  <description>The aerialcore_common package</description>
+  <description>The multiuav_interfaces package</description>
 
   <maintainer email="arturotorres@us.es">Arturo Torres González</maintainer>
 

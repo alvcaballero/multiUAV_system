@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>multiuav_gcs_bringup</name>
+  <version>0.0.1</version>
+  <description>ROS bringup package for the multi-UAV Ground Control Station</description>
+
+  <maintainer email="alesanpal@gmail.com">Alejandro S. Palma</maintainer>
+
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>multiuav_interfaces</depend>
+  <depend>rospy</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>dji_osdk_ros</depend>
+
+</package>

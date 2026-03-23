@@ -3,8 +3,8 @@
 	url = https://github.com/alvcaballero/multiuav_gui.git
 	branch = master
 [submodule "multiuav_onboard_dji"]
-	path = multiuav_onboard_dji
+	path = onboard_dji
 	url = https://github.com/alvcaballero/onboard_dji.git
 [submodule "multiuav_onboard_px4"]
-	path = multiuav_onboard_px4
+	path = onboard_px4
 	url = https://github.com/alvcaballero/onboard_px4.git

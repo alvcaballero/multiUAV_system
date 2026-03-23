@@ -1,0 +1,25 @@
+# ./.tmuxinator.yml
+
+name: px4_missions
+root: ~/
+
+windows:
+  - PX4-real:
+      layout: tiled
+      # Synchronize all panes of this window, can be enabled before or after the pane commands run.
+      # 'before' represents legacy functionality and will be deprecated in a future release, in favour of 'after'
+      # synchronize: after
+      panes:
+        - main:
+            - sleep 2
+            - roslaunch onboard_px4 px4-simulation.launch
+        - simulation:
+            - sleep 5
+            - cd /app/PX4-Autopilot/
+            - export PX4_HOME_LAT=28.452386
+            - export PX4_HOME_LON=-13.867138
+            - export PX4_HOME_ALT=28.5
+            - make px4_sitl gazebo-classic_standard_vtol
+        - rosbridge:
+            - sleep 10
+            - roslaunch rosbridge_server rosbridge_websocket.launch

@@ -15,6 +15,7 @@
         "/home/ubuntugrvc/work/px4/catkin_ws/src/grvc-utils/mocap_bridge/include/**",
         "/home/ubuntugrvc/work/px4/catkin_ws/src/grvc-utils/total_station/include/**",
         "/home/ubuntugrvc/work/px4/catkin_ws/src/multiUAV_system/onboard_dji/include/**",
+        "include/**",
         "/usr/include/**"
       ],
       "name": "ROS",

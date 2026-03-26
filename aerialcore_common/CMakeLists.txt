@@ -17,12 +17,16 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
    FILES
    BatteryState.msg
+   BatteryState_melodic.msg
 )
 
 # Generate services in the 'srv' folder
 add_service_files(
   FILES
   ConfigMission.srv
+  finishGetFiles.srv
+  finishMission.srv
+
 )
 
 ## Generate actions in the 'action' folder

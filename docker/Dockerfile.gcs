@@ -1,0 +1,65 @@
+FROM px4io/px4-dev-ros-noetic
+
+# ROS Noetic reached EOL May 2025 — fix broken apt sources pointing to dead mirrors
+RUN rm -f /etc/apt/sources.list.d/ros*.list && \
+    apt-get update && apt-get install -y curl gnupg2 && \
+    apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys AD19BAB3CBF125EA && \
+    echo "deb http://snapshots.ros.org/noetic/final/ubuntu focal main" \
+      > /etc/apt/sources.list.d/ros-noetic-snapshots.list
+
+RUN apt-get update
+
+RUN apt-get install -y nano
+
+# GCS bridge
+RUN apt-get install -y ros-noetic-rosbridge-server
+
+# multimaster
+RUN apt-get install -y ros-noetic-fkie-master-sync \
+                       ros-noetic-fkie-master-discovery
+
+# DJI SDK deps
+RUN apt-get install -y ros-noetic-nmea-comms \
+                       ffmpeg libavcodec-dev libswresample-dev \
+                       libsdl2-dev
+
+# simple_vs deps
+RUN apt-get install -y ros-noetic-cv-bridge \
+                       ros-noetic-image-transport \
+                       ros-noetic-theora-image-transport \
+                       ros-noetic-tf2-kdl \
+                       ros-noetic-geodesy \
+                       ros-noetic-tf2-geometry-msgs \
+                       ros-noetic-image-view \
+                       ros-noetic-teleop-twist-keyboard
+
+# GStreamer (ros_rtsp)
+RUN apt-get install -y libgstreamer-plugins-base1.0-dev \
+                       libgstreamer-plugins-good1.0-dev \
+                       libgstreamer-plugins-bad1.0-dev \
+                       libgstrtspserver-1.0-dev \
+                       gstreamer1.0-plugins-ugly \
+                       gstreamer1.0-plugins-bad \
+                       gstreamer1.0-rtsp
+
+# flatbuffers
+RUN apt-get install -y libqt5websockets5-dev
+
+RUN apt-get install -y ros-noetic-rqt-graph \
+                       sudo \
+                       git
+
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
+# Workspace — el volumen se monta en /app en runtime
+RUN mkdir -p /app/catkin_ws/src/
+
+RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc && \
+    echo "source /app/catkin_ws/devel/setup.bash" >> ~/.bashrc
+
+COPY initDev.gcs.sh /app/initDev.sh
+RUN chmod +x /app/initDev.sh
+
+WORKDIR /app/catkin_ws
+
+CMD ["bash"]

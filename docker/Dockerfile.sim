@@ -1,0 +1,11 @@
+FROM muavgcs:ros1-gcs
+
+# Gazebo 11 — solo necesario para simulación PX4 SITL
+RUN apt-get update && \
+    apt-get install -y gazebo11 libgazebo11-dev \
+                       python3-pip && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+CMD ["bash"]

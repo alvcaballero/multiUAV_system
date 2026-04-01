@@ -26,6 +26,9 @@ Workdir: `~/programing/resisto_ws/src/`
 | `vision_opencv`   | utils image      | noetic https://github.com/ros-perception/vision_opencv.git  |
 
 
+## fists stepp instal  install and test the onboard sdk and create a user 
+https://developer.dji.com/cn/onboard-sdk/documentation/quick-start/quick-start.html
+
 ### inicial setup.
 Userconfig.txt
 

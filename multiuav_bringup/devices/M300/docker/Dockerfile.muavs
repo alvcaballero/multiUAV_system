@@ -1,0 +1,93 @@
+FROM ros-noetic:l4t-r36.4.7 
+
+# 1. HERRAMIENTAS DEL SISTEMA (Ubuntu 22.04 nativo)
+# Esto sí se puede instalar con apt sin problemas
+RUN apt-get update && apt-get install -y \
+    nano \
+    sudo \
+    curl \
+    gnupg2 \
+    git \
+    cmake \
+    build-essential \
+    libusb-1.0-0-dev \
+    ffmpeg \
+    libavcodec-dev \
+    libssl-dev \
+    libswresample-dev \
+    libsdl2-dev \
+    libgstreamer-plugins-base1.0-dev \
+    libgstreamer-plugins-good1.0-dev \
+    libgstreamer-plugins-bad1.0-dev \
+    libgstrtspserver-1.0-dev \
+    gstreamer1.0-plugins-ugly \
+    gstreamer1.0-plugins-bad \
+    gstreamer1.0-rtsp \
+    libqt5websockets5-dev \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Crear link para python (Noetic lo necesita)
+RUN ln -s /usr/bin/python3 /usr/bin/python || true
+
+# 2. INSTALACIÓN DEL DJI ONBOARD SDK (OSDK)
+RUN cd /root/ && \
+    git clone https://github.com/dji-sdk/Onboard-SDK.git && \
+    cd Onboard-SDK && \
+    sed -i '1i #include <string>\n#include <cstdio>' osdk-core/modules/inc/filemgr/impl/mmap_file_buffer.hpp && \
+    sed -i '1i #include <cstdio>' osdk-core/modules/src/filemgr/impl/mmap_file_buffer.cpp && \
+    mkdir build && cd build && \
+    cmake .. && \
+    make -j$(nproc) && \
+    make install
+
+
+# 2. INSTALAR gRPC para multimaster_fkie (CRÍTICO)
+RUN python3 -m pip install --no-cache-dir grpcio grpcio-tools
+
+# 3. Tu código de ROS
+RUN mkdir -p /root/app_ws/src/external
+WORKDIR /root/app_ws/src
+RUN git clone -b noetic-devel https://github.com/fkie/multimaster_fkie.git && \
+    git clone -b dev https://github.com/miggilcas/Onboard-SDK-ROS.git
+
+# 4. Preparación y Compilación
+WORKDIR /root/app_ws/src/Onboard-SDK-ROS/src
+
+# Usamos 'sed' para comentar la línea que intenta compilar la parte obsoleta
+# Esto evita el error "add_subdirectory given source ... which is not an existing directory"
+RUN sed -i 's/add_subdirectory(dji_osdk_ros_obsoleted)/# add_subdirectory(dji_osdk_ros_obsoleted)/g' CMakeLists.txt
+
+WORKDIR /root/app_ws
+SHELL ["/bin/bash", "-c"]
+
+# Compilar todos los paquetes del workspace (tf ya viene de la imagen base)
+RUN source /root/catkin_ws/install/setup.bash && \
+    catkin_make -DCATKIN_ENABLE_TESTING=OFF -j4
+
+
+# RUN source /root/catkin_ws/install/setup.bash && \
+#     catkin_make -DCMAKE_INSTALL_PREFIX=/root/app_ws/install
+# RUN /bin/bash -c "source /root/app_ws/install/setup.bash && catkin_make"
+
+# Sourcing final
+RUN echo "source /root/app_ws/install/setup.bash" >> /root/.bashrc
+
+# SI NECESITAS PAQUETES EXTRAS DE ROS (como cv_bridge o image_transport):
+# La imagen 'noetic-desktop' ya trae los básicos (rviz, tf2, image_transport, cv_bridge).
+# Si falta alguno, clónalo aquí en /src. Ejemplo:
+# RUN git clone -b noetic-devel https://github.com/ros-perception/vision_opencv.git
+
+# # 4. COMPILAR EL WORKSPACE
+# RUN ls -l /opt/
+# RUN ls -l /usr/local/
+# WORKDIR /catkin_ws
+# RUN /bin/bash -c "source /opt/ros/noetic/setup.bash && catkin_make"
+
+# # 5. CONFIGURACIÓN DEL BASHRC
+# RUN echo "source /opt/ros/noetic/setup.bash" >> /root/.bashrc && \
+#     echo "source /catkin_ws/devel/setup.bash" >> /root/.bashrc
+
+# Definir punto de entrada
+WORKDIR /root/app_ws
+CMD ["bash"]

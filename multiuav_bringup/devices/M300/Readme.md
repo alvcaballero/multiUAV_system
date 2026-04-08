@@ -39,6 +39,10 @@ alias M300-real="/home/nvidia/programming/Onboard-SDK/utility/bin/armv8/64-bit/.
 alias M300-sim-on="/home/nvidia/programming/Onboard-SDK/utility/bin/armv8/64-bit/./MatriceSeries_ConfigTool --usb-port /dev/ttyACM0 --config-file /home/nvidia/programming/Onboard-SDK/build/bin/UserConfig.txt --power-supply on --usb-connected-flight on --simulation on --latitude 37.1939871 --longitude -6.7032891"
 ```
 
+in the launch  /Onboard-SDK-ROS/launch/dji_vehicle_node.launch"
+add the  app_id  and code 
+
+
 install the packages ros
 configure netplan: ruta  /etc/netplan/50-cloud-init.yaml
 

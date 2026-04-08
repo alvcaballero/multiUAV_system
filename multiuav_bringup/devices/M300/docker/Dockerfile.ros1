@@ -155,7 +155,9 @@ RUN git clone https://github.com/ros/actionlib.git -b 1.14.0 && \
     git clone https://github.com/ros/urdf.git -b ${ROS_DISTRO}-devel && \
     git clone https://github.com/ros/kdl_parser.git -b ${ROS_DISTRO}-devel && \
     git clone https://github.com/ros/robot_state_publisher.git -b ${ROS_DISTRO}-devel && \
-    git clone https://github.com/ros/roslint.git -b 0.12.0
+    git clone https://github.com/ros/roslint.git -b 0.12.0 && \
+    git clone https://github.com/ros-geographic-info/geographic_info.git -b master && \
+    git clone https://github.com/ros-geographic-info/unique_identifier.git -b master
 
     #vedere     git clone https://github.com/ros/roslint.git -b master
 
@@ -184,7 +186,9 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libbullet-dev \
     libeigen3-dev \
-    liborocos-kdl-dev
+    liborocos-kdl-dev \
+    uuid-dev \
+    libgeographic-dev
 
 
 # --- Stage 1: Build ROS Base + vision_opencv (excluding plugins and zed wrapper) ---
@@ -192,10 +196,17 @@ RUN apt-get update && \
 #     mv src/image_transport_plugins /tmp/skipped_pkgs/ && \
 #     mv src/zed-ros-wrapper /tmp/skipped_pkgs/
 RUN mkdir -p /tmp/skipped_pkgs && \
-    mv src/image_transport_plugins /tmp/skipped_pkgs/ 
+    mv src/image_transport_plugins /tmp/skipped_pkgs/
+
+# Compilar unique_id primero para que uuid_msgs esté disponible antes que geographic_msgs
+RUN ./src/catkin/bin/catkin_make install \
+      -DCMAKE_INSTALL_PREFIX=/root/catkin_ws/install \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DPYTHON_EXECUTABLE=/usr/bin/python3 \
+      -DCATKIN_ENABLE_TESTING=OFF \
+      --pkg unique_id
 
 # Use the catkin_make executable from the cloned catkin source
-# Add explicit CMAKE_INSTALL_PREFIX
 RUN ./src/catkin/bin/catkin_make install \
       -DCMAKE_INSTALL_PREFIX=/root/catkin_ws/install \
       -DCMAKE_BUILD_TYPE=Release \

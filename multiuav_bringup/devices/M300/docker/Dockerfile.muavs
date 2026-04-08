@@ -42,7 +42,72 @@ RUN cd /root/ && \
     make install
 
 
-# 2. INSTALAR gRPC para multimaster_fkie (CRÍTICO)
+# 2. COMPILAR OpenCV 4.8 con CUDA (necesario para cuda::GpuMat / cuda::resize)
+# Primero desinstalar el OpenCV sin CUDA que viene de la imagen base
+RUN apt-get remove -y libopencv* opencv-* nvidia-opencv* || true && \
+    apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y \
+    libgtk-3-dev \
+    libpng-dev \
+    libjpeg-dev \
+    libtiff-dev \
+    libdc1394-dev \
+    libeigen3-dev \
+    libatlas-base-dev \
+    gfortran \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN cd /tmp && \
+    git clone --branch 4.x --depth 1 https://github.com/opencv/opencv.git && \
+    git clone --branch 4.x --depth 1 https://github.com/opencv/opencv_contrib.git
+
+# Patch cudev: reemplazar sintaxis GNU __attribute__((device)) por __forceinline__ __device__
+# compatible con NVCC/CUDA 12 + Thrust moderno en Jetson Orin (sm_87)
+RUN sed -i \
+    's/__attribute__((device)) __inline__ __attribute__((always_inline))/__forceinline__ __device__/g' \
+    /tmp/opencv_contrib/modules/cudev/include/opencv2/cudev/block/reduce.hpp
+
+# libcuda.so en Jetson (L4T) está en tegra/, no en el path estándar de CUDA
+# Se pasa directo a cmake para evitar problemas de búsqueda
+RUN mkdir /tmp/opencv/build && cd /tmp/opencv/build && \
+    cmake .. \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr/local \
+        -DOPENCV_EXTRA_MODULES_PATH=/tmp/opencv_contrib/modules \
+        -DWITH_CUDA=ON \
+        -DCUDA_ARCH_BIN=8.7 \
+        -DCUDA_ARCH_PTX="" \
+        -DWITH_CUDNN=ON \
+        -DOPENCV_DNN_CUDA=ON \
+        -DWITH_CUBLAS=ON \
+        -DWITH_GSTREAMER=ON \
+        -DWITH_LIBV4L=ON \
+        -DBUILD_opencv_python3=ON \
+        -DPYTHON3_EXECUTABLE=/usr/bin/python3 \
+        -DBUILD_TESTS=OFF \
+        -DBUILD_PERF_TESTS=OFF \
+        -DBUILD_EXAMPLES=OFF \
+        -DBUILD_JAVA=OFF \
+        -DBUILD_opencv_cudacodec=OFF && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig && \
+    rm -rf /tmp/opencv /tmp/opencv_contrib
+
+# Recompilar vision_opencv completo (cv_bridge + image_geometry) contra el nuevo OpenCV
+# El compilado en Dockerfile.ros1 apunta a /usr/include/opencv4 (desinstalado)
+RUN /bin/bash -c "source /root/catkin_ws/install/setup.bash && \
+    cd /root/catkin_ws && \
+    ./src/catkin/bin/catkin_make install \
+        -DCMAKE_INSTALL_PREFIX=/root/catkin_ws/install \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DPYTHON_EXECUTABLE=/usr/bin/python3 \
+        -DCATKIN_ENABLE_TESTING=OFF \
+        -DOpenCV_DIR=/usr/local/lib/cmake/opencv4 \
+        --pkg cv_bridge --pkg image_geometry"
+
+# 3. INSTALAR gRPC para multimaster_fkie (CRÍTICO)
 RUN python3 -m pip install --no-cache-dir grpcio grpcio-tools
 
 # 3. Tu código de ROS
@@ -56,14 +121,16 @@ WORKDIR /root/app_ws/src/Onboard-SDK-ROS/src
 
 # Usamos 'sed' para comentar la línea que intenta compilar la parte obsoleta
 # Esto evita el error "add_subdirectory given source ... which is not an existing directory"
-RUN sed -i 's/add_subdirectory(dji_osdk_ros_obsoleted)/# add_subdirectory(dji_osdk_ros_obsoleted)/g' CMakeLists.txt
+# RUN sed -i 's/add_subdirectory(dji_osdk_ros_obsoleted)/# add_subdirectory(dji_osdk_ros_obsoleted)/g' CMakeLists.txt
 
 WORKDIR /root/app_ws
 SHELL ["/bin/bash", "-c"]
 
 # Compilar todos los paquetes del workspace (tf ya viene de la imagen base)
+# OpenCV_DIR apunta al OpenCV de JetPack (con CUDA), no al de pip
 RUN source /root/catkin_ws/install/setup.bash && \
-    catkin_make -DCATKIN_ENABLE_TESTING=OFF -j4
+    catkin_make -DCATKIN_ENABLE_TESTING=OFF -j4 \
+                -DOpenCV_DIR=/usr/local/lib/cmake/opencv4`
 
 
 # RUN source /root/catkin_ws/install/setup.bash && \
@@ -71,7 +138,11 @@ RUN source /root/catkin_ws/install/setup.bash && \
 # RUN /bin/bash -c "source /root/app_ws/install/setup.bash && catkin_make"
 
 # Sourcing final
-RUN echo "source /root/app_ws/install/setup.bash" >> /root/.bashrc
+RUN echo "source /root/app_ws/devel/setup.bash" >> /root/.bashrc
+
+# Aliases para el DJI MatriceSeries Config Tool
+RUN echo 'alias M300-real="/root/Onboard-SDK/utility/bin/armv8/64-bit/MatriceSeries_ConfigTool --usb-port /dev/ttyACM0 --config-file /root/Onboard-SDK/build/bin/UserConfig.txt --power-supply on"' >> /root/.bashrc && \
+    echo 'alias M300-sim-on="/root/Onboard-SDK/utility/bin/armv8/64-bit/MatriceSeries_ConfigTool --usb-port /dev/ttyACM0 --config-file /root/Onboard-SDK/build/bin/UserConfig.txt --power-supply on --usb-connected-flight on --simulation on --latitude 37.1939871 --longitude -6.7032891"' >> /root/.bashrc
 
 # SI NECESITAS PAQUETES EXTRAS DE ROS (como cv_bridge o image_transport):
 # La imagen 'noetic-desktop' ya trae los básicos (rviz, tf2, image_transport, cv_bridge).
@@ -88,6 +159,11 @@ RUN echo "source /root/app_ws/install/setup.bash" >> /root/.bashrc
 # RUN echo "source /opt/ros/noetic/setup.bash" >> /root/.bashrc && \
 #     echo "source /catkin_ws/devel/setup.bash" >> /root/.bashrc
 
+# Entrypoint: parsea UserConfig.txt y actualiza dji_vehicle_node.launch
+COPY entrypoint.sh /root/entrypoint.sh
+RUN chmod +x /root/entrypoint.sh
+
 # Definir punto de entrada
 WORKDIR /root/app_ws
+ENTRYPOINT ["/root/entrypoint.sh"]
 CMD ["bash"]

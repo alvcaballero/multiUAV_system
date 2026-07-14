@@ -1,5 +1,6 @@
 # M300 ros1 - nvidia jetson orin nano
-
+## create app in dji developer
+https://developer.dji.com/user/apps/#all
 ## hardware setup:
 Two options:
 ### OSDK Expansion Module:
@@ -59,4 +60,10 @@ tmuxinator start M300-RosRTCP mode=real
 change host and verify the host in uav and gcs computer
 ```
 nano /etc/hosts
+```
+
+# si no hay conneccion con multimaster devido a las  varias interfaces de red 
+```
+export ROS_HOSTNAME=localhost
+export ROS_IP=10.20.0.145 
 ```

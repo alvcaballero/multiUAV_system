@@ -1,0 +1,8 @@
+# DJI PSDK credentials — obtener desde https://developer.dji.com
+# Registrar la aplicación como "Payload SDK" para el M300 RTK
+app_name        : ROS2PSDK
+app_id          : <YOUR_APP_ID>
+app_key         : <YOUR_APP_KEY>
+app_license     : <YOUR_APP_LICENSE>
+developer_account : <YOUR_DJI_DEVELOPER_ACCOUNT>
+baudrate        : 460800

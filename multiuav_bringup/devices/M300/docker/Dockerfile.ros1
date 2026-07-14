@@ -1,6 +1,6 @@
 #https://github.com/ADVRHumanoids/ros1-ros2-zed-jetson-docker/blob/master/ros1_noetic/Dockerfile
 # 1. Define ARGs
-ARG L4T_VERSION=l4t-r36.4.7
+ARG L4T_VERSION=l4t-r36.4.0
 ARG CUDA_MAJOR=12 # Check specific CUDA version for JP6 GA if needed, usually 12.2
 ARG CUDA_MINOR=2
 ARG ZED_SDK_MAJOR=5
@@ -10,8 +10,8 @@ ARG L4T_MAJOR=36  # Used in ZED URL
 ARG L4T_MINOR=4   # Used in ZED URL
 
 # Use the corresponding base L4T image
-ARG IMAGE_NAME=nvcr.io/nvidia/l4t-jetpack:r36.4.0
-ARG ROS1_DISTRO=noetic # Keep for reference
+ARG IMAGE_NAME=opencv-cuda:l4t-r36.4.0
+ARG ROS1_DISTRO=noetic
 
 FROM ${IMAGE_NAME}
 
@@ -51,10 +51,7 @@ RUN apt-get update && \
     python3-empy python3-yaml python3-netifaces \
     libboost-all-dev \
     libusb-1.0-0-dev libsuitesparse-dev software-properties-common \
-    libv4l-dev libglew-dev libgstreamer1.0-dev \
-    libgstreamer-plugins-base1.0-dev libgstreamer-plugins-good1.0-dev \
-    libglu1-mesa-dev libjpeg-dev libpng-dev libavcodec-dev libavformat-dev \
-    libavutil-dev libswscale-dev libopenblas-dev liblapack-dev libpq-dev \
+    libglew-dev libglu1-mesa-dev libpq-dev \
     libgeographic-dev libconsole-bridge-dev libpoco-dev libtinyxml2-dev \
     liblz4-dev libbz2-dev libtheora-dev sbcl libjpeg-turbo8-dev libgpgme-dev \
     python3-pil libxcb-cursor0 \
@@ -80,7 +77,6 @@ RUN python3 -m pip install --upgrade pip && \
     wstool \
     rosinstall_generator \
     numpy \
-    opencv-python-headless \
     pyyaml \
     protobuf \
     cython \
@@ -204,6 +200,7 @@ RUN ./src/catkin/bin/catkin_make install \
       -DCMAKE_BUILD_TYPE=Release \
       -DPYTHON_EXECUTABLE=/usr/bin/python3 \
       -DCATKIN_ENABLE_TESTING=OFF \
+      -DOpenCV_DIR=/usr/local/lib/cmake/opencv4 \
       --pkg unique_id
 
 # Use the catkin_make executable from the cloned catkin source
@@ -211,7 +208,8 @@ RUN ./src/catkin/bin/catkin_make install \
       -DCMAKE_INSTALL_PREFIX=/root/catkin_ws/install \
       -DCMAKE_BUILD_TYPE=Release \
       -DPYTHON_EXECUTABLE=/usr/bin/python3 \
-      -DCATKIN_ENABLE_TESTING=OFF
+      -DCATKIN_ENABLE_TESTING=OFF \
+      -DOpenCV_DIR=/usr/local/lib/cmake/opencv4
 
 # --- !! Verification Step BETWEEN Stages !! ---
 # Check if image_transport AND tf2_ros installed their files correctly in Stage 1
@@ -239,7 +237,8 @@ RUN /bin/bash -c ". /root/catkin_ws/install/setup.bash && \
     -DCMAKE_INSTALL_PREFIX=/root/catkin_ws/install \
     -DCMAKE_BUILD_TYPE=Release \
     -DPYTHON_EXECUTABLE=/usr/bin/python3 \
-    -DCATKIN_ENABLE_TESTING=OFF"
+    -DCATKIN_ENABLE_TESTING=OFF \
+    -DOpenCV_DIR=/usr/local/lib/cmake/opencv4"
 
 # Add sourcing to .bashrc
 RUN echo 'source /root/catkin_ws/install/setup.bash' >> /root/.bashrc

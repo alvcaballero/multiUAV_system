@@ -1,8 +1,18 @@
 #!/bin/bash
 # Entrypoint: parsea UserConfig.txt y actualiza dji_vehicle_node.launch antes de arrancar
 
-USER_CONFIG="/root/Onboard-SDK/build/bin/UserConfig.txt"
+USER_CONFIG="/root/Onboard-SDK/build/bin/UserConfig_osdk.txt"
 LAUNCH_FILE="/root/app_ws/src/Onboard-SDK-ROS/launch/dji_vehicle_node.launch"
+
+if [ ! -f "$USER_CONFIG" ]; then
+    echo "[entrypoint] ERROR: credential file not found at $USER_CONFIG" >&2
+    echo "[entrypoint] You must create the real config from the template first:" >&2
+    echo "[entrypoint]   cp UserConfig_osdk.txt.example UserConfig_osdk.txt" >&2
+    echo "[entrypoint]   # then fill in your DJI app_id / app_key" >&2
+    echo "[entrypoint] and mount it into the container:" >&2
+    echo "[entrypoint]   -v /path/to/UserConfig_osdk.txt:$USER_CONFIG:ro" >&2
+    exit 1
+fi
 
 if [ -f "$USER_CONFIG" ]; then
     # Parsear valores del archivo (formato: "clave : valor")
@@ -54,9 +64,6 @@ PYEOF
     else
         echo "[entrypoint] WARNING: launch file not found or UserConfig incomplete, using defaults"
     fi
-else
-    echo "[entrypoint] WARNING: UserConfig.txt not found at $USER_CONFIG"
-    echo "[entrypoint] Mount it with: -v /path/to/UserConfig.txt:$USER_CONFIG:ro"
 fi
 
 # Sourcear ROS y arrancar bash

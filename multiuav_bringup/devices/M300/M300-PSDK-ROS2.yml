@@ -1,0 +1,59 @@
+#https://github.com/paulfioravanti/dotfiles/blob/062005ecf6c98675949fa8b5ce8866d918e2f040/tmuxinator/exercism.yml#L88
+# Set var "ns" and 'mode' to workdir
+
+<% 
+default_ns = 'uav_14'
+
+if @settings["ns"] 
+  uav_ns = @settings["ns"] 
+else 
+  uav_ns = default_ns 
+end 
+
+
+name: dji_mission
+root: ~/
+
+on_project_start: echo "Starting M300"
+on_project_exit: docker stop muavgcs_noetic && tmux kill-window -t dji_mission 
+
+on_project_first_start:
+  - echo " initializing M300"
+  - echo  "name_space: <%=uav_ns%> "
+  - sleep 5
+  <% if @args[0]  == "-h" %>
+  - echo "Usage keys values "
+  - 'echo "ns=15              -default  <%= default_ns %>"'
+  - sleep 5
+  - exit
+  <% end %>
+
+
+
+
+windows:
+  - M210-sim:
+      layout: tiled
+      # Synchronize all panes of this window, can be enabled before or after the pane commands run.
+      # 'before' represents legacy functionality and will be deprecated in a future release, in favour of 'after'
+      # synchronize: after
+      panes:
+        - config:
+            - ~/app_ros1/docker/container_run.sh psdk
+            - source ~/psdk_ws/install/setup.bash
+            - sleep 2
+        - psdk:
+            - ~/app_ros1/docker/container_run.sh psdk
+            - source ~/psdk_ws/install/setup.bash
+            - sleep 2
+            - sleep 10
+            - ros2 launch psdk_wrapper wrapper.launch.py 
+        - multimaster:
+            - ~/app_ros1/docker/container_run.sh psdk
+            - source ~/psdk_ws/install/setup.bash
+            - sleep 2
+
+        - resize:
+            - ~/app_ros1/docker/container_run.sh psdk
+            - source ~/psdk_ws/install/setup.bash
+            - sleep 2

@@ -4,3 +4,12 @@
 grvc-utils
 # Built Visual Studio Code Extensions
 *.vsix
+
+# ---- DJI SDK credentials (NEVER commit real keys/licenses) ----
+# Real credential files live only on local disk. Track *.example instead.
+multiuav_bringup/devices/M300/docker/dji_psdk_config.json
+multiuav_bringup/devices/M300/docker/UserConfig_psdk.txt
+multiuav_bringup/devices/M300/docker/UserConfig_osdk.txt
+multiuav_bringup/devices/M300/docker/UserConfig.txt
+# Stray "copy" files
+**/*[Cc]opy*.txt

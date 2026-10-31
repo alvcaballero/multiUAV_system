@@ -1,0 +1,35 @@
+# Paquetes PROPIOS del M300 en ROS 1 Noetic (perfil OSDK). Se importan junto al contrato images/msgs/noetic.repos (R2).
+# Relevado de lo que corre a bordo: ~/work/M300/app_ros1 (montado en /root/app_ws/src/external) + lo que clonaba
+# multiuav_bringup/devices/M300/docker/Dockerfile.osdk. Versiones fijadas por COMMIT (decisión 12).
+#
+# NO están aquí, a propósito:
+#   - Onboard-SDK-ROS (dji_osdk_ros): viene del CONTRATO images/msgs/noetic.repos, como psdk_ros2 en Humble
+#     (miggilcas/Onboard-SDK-ROS dev @ d7ee4b457b56b92c0f817bcef2e3c461f80389ac). El bridge lo compila con
+#     -DONBOARD_SDK_ROS_ONLY_INTERFACES=ON (solo msgs/srvs, sin OSDK); el dispositivo, completo.
+#   - Onboard-SDK (dji-sdk/Onboard-SDK): no es un paquete catkin (CMake puro, `make install` a /usr/local); lo necesita
+#     dji_osdk_ros completo. Se fija en el Dockerfile del perfil OSDK: master @ 118e2825a347499efb8ed253146552c5b9b10779.
+#   - aerialcore_common + multiuav_interfaces (mensajes): CONTRATO, los dos en transición.
+repositories:
+  # Nodos de misión (dji_waypointV2_node) y launch de a bordo (run_M300-rtsp.launch, multimaster-noetic.launch).
+  # El Jetson corre ae6fe99 + run_M300-rtsp.launch sin trackear; 5e0e501 es ese mismo launch ya commiteado
+  # (+ 921382e "fix minimum value of max speed").
+  onboard_dji:
+    type: git
+    url: https://github.com/alvcaballero/onboard_dji.git
+    version: 5e0e501f3894a6c6485753000f014c8e1ce45191   # M300
+
+  multimaster_fkie:
+    type: git
+    url: https://github.com/fkie/multimaster_fkie.git
+    version: 143f8e44055d3543d9bc1c2ebfe34487b32ebcc5   # noetic-devel
+
+  # Vídeo: resize de la cámara principal (simple_vs) → RTSP (ros_rtsp). Config de streams: config/ros_rtsp_stream_setup.yaml
+  simple_vs:
+    type: git
+    url: https://github.com/miggilcas/simple_vs.git
+    version: afaf849a5e483a1bf3e0b253e380ffad453fe854   # cuda
+
+  ros_rtsp:
+    type: git
+    url: https://github.com/CircusMonkey/ros_rtsp.git
+    version: 4ccce0332d242440f7115320e095d739f137092b   # master

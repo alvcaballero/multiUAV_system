@@ -1,0 +1,27 @@
+# Config de ros_rtsp del M300 (perfil OSDK). Origen: modificación local sin commitear en el Jetson
+# (~/work/M300/app_ros1/ros_rtsp/config/stream_setup.yaml). ros_rtsp la lee de $(find ros_rtsp)/config/stream_setup.yaml
+# sin argumento para cambiarla: en R2 se monta encima de ese archivo. OJO: namespace uav_14 fijo en los topics.
+#
+# Set up your streams to rtsp here.
+#  stream-yay:
+#    type: topic
+#    source: /uav_14/dji_osdk_ros/fpv_camera_images
+#    mountpoint: /fpv
+#    caps: video/x-raw,framerate=10/1,width=640,height=480
+#    bitrate: 500
+#
+#  stream-xt2:
+#    type: topic
+#    source: /uav_14/dji_osdk_ros/main_camera_images
+#    mountpoint: /main
+#    caps: video/x-raw,framerate=10/1,width=1280,height=720
+#    bitrate: 500
+
+port: "8554"
+streams: # Cannot rename - must leave this as is.
+  stream-xt3:
+    type: topic
+    source: /uav_14/dji_osdk_ros/main_camera_images_resize
+    mountpoint: /main_resize
+    caps: video/x-raw,framerate=10/1,width=608,height=448
+    bitrate: 500

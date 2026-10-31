@@ -62,10 +62,16 @@ no se editan ni se commitean. Si hace falta un cambio en otro repo, se anota en 
     el usuario.
 20. **Micro-XRCE-DDS Agent `v2.4.3`** (el del `.repos` del GCS y del workspace Jazzy local). Confirmado por el usuario.
 21. **Sin mock ROS 2 en R3**: el SITL de `dev:jazzy` hace de dron. Queda para después.
-22. **Dev: el workspace ENTERO en el host, montado siempre en `/ws`** (`install/` guarda rutas absolutas). Ruta por
-    `MUAV_WS_<DISTRO>` (una por distro), por defecto `ws/<distro>`. Terminal y VS Code (`.devcontainer/jazzy{,-nvidia}`)
-    usan la misma imagen y el mismo `/ws`; con el devcontainer en marcha, `container_run.sh dev` entra en él (un solo
-    entorno). Confirmado por el usuario (A+B+D; usa devcontainer, tmux y terminal).
+22. **Dev: el workspace ENTERO en el host, montado siempre en `/ws`** (`install/` guarda rutas absolutas). Por defecto
+    `ws/<distro>`, otro con `MUAV_WS_<DISTRO>`. Workspaces DEL CONTENEDOR con clones propios, sincronizados con el
+    entorno local por git: `~/ros2_px4_ws` es Jazzy NATIVO y no se monta nunca (`images/dev/ws_guard.sh` lo detecta).
+    Terminal y VS Code usan la misma imagen y el mismo `/ws`; con el devcontainer en marcha, `container_run.sh dev`
+    entra en él (un solo entorno). El devcontainer lo GENERA `images/build.sh` (`.devcontainer/generate.sh`: una
+    plantilla, GPU detectada como `createContainer.sh` de px4_ros2_docker, salida gitignored). Confirmado por el usuario.
+23. **`dev:humble` = `~/work/px4_ros2_docker`** (el entorno Humble de desarrollo), fijado por versión, para PSDK (no
+    funciona en Jazzy) y PX4 1.15: Gazebo **Harmonic** + `ros-humble-ros-gzharmonic` (repo OSRF), PX4 `v1.15.4` con
+    código, Agent `v2.4.3`, PX4-gazebo-models `e05f4312`, mavlink-router `v4`, `numpy<2`. Código de partida:
+    `images/dev/humble.repos`. PX4 con código completo en todas las distros (no solo runtime). Confirmado por el usuario.
 
 ## Estructura actual
 
@@ -110,7 +116,8 @@ Tags de imagen: `muav/<rol>:<distro>` (x86 y multi-arch), `muav/m210:noetic`, `m
 - `devices/px4_ros2`: Agent `v2.4.3` + `MUAV_px4_offboard` @`6864e57` + `mqtt_client` @`cb43b6c` (`jazzy.repos`) +
   translation node de PX4 `f629d451` (`px4.env` + `fetch_translation_node.sh`: un commit, dos carpetas, 440 KB).
   Solo perfil Jazzy (no Humble): el offboard compilado contra `px4_msgs` v1.15.4 le mandaría al GCS la estructura vieja.
-- `dev:jazzy`: Agent en `/opt/muav/tools` (nueva capa de `muav_env.sh`) del MISMO `jazzy.repos`; PX4 SITL de
+- `dev:jazzy`: Agent en `/opt/muav/tools` (nueva capa de `muav_env.sh`) del MISMO `devices/px4_ros2/agent.repos` que
+  el dron; PX4 SITL de
   `px4.env` + Gazebo Harmonic (`ubuntu.sh`) + `ros-jazzy-ros-gz`; `images/dev/tmuxinator_px4_ros2_sim.yml`.
 - `bridge` (todas las distros): `--ipc host`, igual que `dev`. Sin eso, Fast-DDS entre contenedores del mismo host
   descubre pero no recibe datos.
@@ -133,17 +140,20 @@ Tags de imagen: `muav/<rol>:<distro>` (x86 y multi-arch), `muav/m210:noetic`, `m
    `uav_1` (interfaz `px4_ros2`).
 7. Companion: `images/build.sh jazzy base`, `devices/px4_ros2/container_build.sh`, `tmuxinator.yml id=<n>` con el
    firmware en `UXRCE_DDS_NS_IDX=<n>`.
-8. Devcontainer: `export MUAV_WS_JAZZY=$HOME/ros2_px4_ws`, VS Code → *Reopen in Container* → `jazzy-nvidia`. Terminal
-   zsh con `ros2` cargado, `/opt/muav/ws_rosdep.sh` corrido, `gz sim` abre la GUI; después `./container_run.sh dev
-   jazzy` desde tmux debe decir "devcontainer de VS Code en marcha".
+8. `images/build.sh humble` (genera `.devcontainer/humble/`). `vcs import ws/humble/src < images/dev/humble.repos`,
+   VS Code → *Reopen in Container* → `muav dev:humble (NVIDIA)`: terminal zsh con `ros2`, `ws_rosdep.sh` debe decir
+   "Harmonic instalado: se saltean ros_gz…", `colcon build` de psdk_wrapper + MUAV_psdk_gz, `gz sim` abre la GUI.
+   Después `./container_run.sh dev humble` desde tmux debe decir "devcontainer de VS Code en marcha".
 
 ## Después del plan (no entra en R1–R3)
 
 - Mock ROS 2 (PSDK / PX4 ROS 2) para `dev`: `images/dev/mock/` es solo ROS 1 (decisión 21).
 - Dev como el usuario del host (`--user`), para que `/ws` no se llene de archivos de root: hay que crear el usuario en la
   imagen y mover lo que asume `/root` (`.bashrc`, rosdep, apt). Tocar `images/base`, después de verificar.
-- Devcontainer de `noetic`/`humble`: copiar `.devcontainer/jazzy*` cambiando la distro (si se usa).
-- `dev:humble` sin SITL: el contrato Humble es PX4 `v1.15.4`; si hace falta, mismo patrón que Jazzy con ese tag.
+- Devcontainer de `noetic`: `.devcontainer/generate.sh noetic` ya funciona; la plantilla (zsh, extensiones) es ROS 2
+  pero no lo impide. Probar si se usa.
+- Resto de `px4_ros2_docker` en `images/dev/humble.repos` (aerostack2, px4-ros2-interface-lib,
+  uav_swarm_mission_arch…): solo si se usan; fijar por commit.
 - Subir el contrato Jazzy cuando salga un PX4 nuevo: `images/msgs/jazzy.repos` (`px4_msgs`) y
   `devices/px4_ros2/px4.env` JUNTOS, los topics de `px4_ros2.yaml` del GCS y `config/topics.yaml` del offboard.
 
@@ -170,6 +180,9 @@ GCS (`multiuav_gcs`):
 - Actualizar el puntero del submódulo `multiuav_gui` (hoy `7d4b1df`) tras probar el conjunto.
 
 Otros:
+- `psdk_ros2` (`~/ros2_px4_ws/src/work`): 1 commit SIN PUSHEAR (`28574d3`) que agrega
+  `psdk_interfaces/srv/GimbalSetRotation.srv` = CAMBIO DE CONTRATO Humble. Tras pushearlo: subir `psdk_ros2` en
+  `images/msgs/humble.repos` y `images/dev/humble.repos` (el M300 lo hereda del contrato).
 - `MUAV_px4_offboard` (`~/ros2_px4_ws/src/work`): 4 archivos modificados sin commitear (`bt/commands.py`,
   `bt/offboard_mission_bt.py`, `config/bt_mission.yaml`, `docs/gcs_commands.md`) NO están en el pin `6864e57`.
 - `wirispro_manager` (`miggilcas`, privado o borrado): mientras no sea accesible, el VTOL usa `onboard_px4` `main`, sin
@@ -200,7 +213,16 @@ Otros:
   su `devcontainer-nvidia.json` tiene mal la URL de `zsh-syntax-highlighting` (`zsh-users/zsh-users/…`).
 - Un `.zshrc` no carga `setup.bash`: `muav_env.sh` elige `setup.zsh` o `setup.bash` según el shell.
 - Micro-XRCE-DDS Agent fuera de colcon usa por defecto la superbuild (baja su propio Fast-DDS). Su `colcon.pkg` fuerza
-  el de `/opt/ros`: compilarlo con colcon.
+  el de `/opt/ros`: compilarlo con colcon. EXCEPTO en Humble: con el del sistema pide fastcdr 2 y Humble trae 1.0.x →
+  superbuild (Fast-DDS 2.14.7 + fastcdr 2.2.8 en `/usr/local`, sonames distintos de los de ROS; compilado y probado).
+- **Humble + Harmonic: `rosdep install -y` DESINSTALA Harmonic.** rosdep resuelve `ros_gz_*` a los paquetes Fortress,
+  que tienen `Conflicts` con `ros-humble-ros-gzharmonic-*` (verificado con `apt -s`: quita los 6). `ws_rosdep.sh`
+  saltea esas claves si gzharmonic está instalado. Cualquier `rosdep install` a mano en dev:humble: `--skip-keys`.
+- `ros-humble-ros-gzharmonic` y `gz-harmonic` NO están en el repo de ROS: repo OSRF.
+- PX4 `v1.15.4` `Tools/setup/ubuntu.sh` en 22.04 instala Gazebo **Garden**: `--no-sim-tools` + sus deps a mano
+  (px4_ros2_docker usa una copia parcheada, `Docker/setup_px4/ubuntu_setup.sh`).
+- Un workspace compilado en el host guarda su prefijo en `install/setup.sh` (`_colcon_prefix_chain_sh_COLCON_CURRENT_PREFIX`)
+  y `build/CMakeCache.txt` (`CMAKE_HOME_DIRECTORY`): así lo detecta `ws_guard.sh`.
 
 ## Mapa de esta máquina (2026-10-31)
 

@@ -313,7 +313,26 @@ Estado (2026-10-31): pasos 1-4 escritos, **sin construir ni probar**. Falta el 5
   contenido. Compatible en el cable: los defaults no viajan y el type hash de Jazzy los excluye
   (`rosidl_generator_type_description.calculate_type_hash`). El M300 no usa `Mission`. En R3: MISMO commit en `jazzy.repos`.
 - **Registry**: por ahora build local. Publicar en GHCR cuando haya más usuarios.
-- **README.md**: reescribirlo con el mapa del sistema al terminar R1.
+- **README.md**: hecho (2026-10-31), con el mapa del sistema.
+- **R2 paso 5, limpieza (hecha 2026-10-31, a pedido, ANTES de construir y probar)**: borrados `docker/`,
+  `multiuav_bringup/`, `multiuav_interfaces/` y los submódulos `onboard_dji` y `onboard_px4`. Antes se comprobó que
+  los submódulos no tenían cambios, commits fuera de GitHub ni stashes, y que lo nuevo solo los nombra en comentarios
+  "Origen:". Si algo de R2 falla al construir, lo viejo está en la historia (último commit con todo: el anterior a
+  la limpieza).
+  - Credenciales locales (ignoradas, NO commiteadas) movidas sin abrir: `UserConfig_osdk.txt` →
+    `devices/m300/cfg/`; `UserConfig_psdk.txt` y `dji_psdk_config.json` (formato viejo) → `devices/m300/cfg/legacy/`,
+    para pasarlas a mano a `psdk_params.yaml` / `link_config.json`.
+  - Rescatado: los netplan como `devices/{m300,m210}/host/netplan.yaml.example` (contraseñas reemplazadas con `sd`,
+    sin que pasaran por la conversación; verificado que no se filtró ninguna). La config RTSP real del M210
+    (`devices/ros-rtsp/stream_setup.yaml`, `uav_2`) reemplaza a la que se había derivado del M300. Las notas de red del
+    Readme del M300 van a `devices/m300/README.md`.
+  - Descartado: `vtol/stream/` (herramientas sueltas, sin uso), `M300/images/image.png` (nadie la usa), los
+    tmuxinator viejos, `test_publisher.py`, los `.bashrc` con alias.
+  - `.gitignore`: patrones genéricos de credenciales (`**/UserConfig*.txt`, `**/dji_psdk_config.json`, `**/*.ovpn`,
+    `**/*login.text`) además de `devices/*/cfg/*`.
+- **SEGURIDAD: contraseñas WiFi commiteadas (TERCERA exposición).** `multiuav_bringup/devices/M300/Netplan.yaml` (2) y
+  `M210/50-cloud-init.yaml` (1) tenían contraseñas WiFi reales en este repo público. Borrarlas no las saca de la
+  historia: **cambiar esas contraseñas** en los routers/APs.
 
 ## Mapa de esta máquina (relevado 2026-10-31)
 

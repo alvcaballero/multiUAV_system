@@ -22,8 +22,9 @@ devices/                      un dispositivo por carpeta, con TODO lo suyo (Dock
   vtol/                       PX4 por mavros (Raspberry Pi): Noetic
   px4_ros2/                   PX4 por uXRCE-DDS (companion x86/arm64): Jazzy, translation node opcional
   common/                     compartido entre drones: Onboard-SDK, multimaster con watchdog, hora desde el GCS
+.devcontainer/                VS Code: dev:jazzy (con y sin NVIDIA), mismo /ws que container_run.sh
 container_run.sh              dev | bridge <distro>, o un dispositivo
-ws/<distro>/                  workspace de desarrollo (gitignored), montado en /ws del contenedor dev
+ws/<distro>/                  workspace de desarrollo por defecto (gitignored), montado en /ws del contenedor dev
 multiuav_gui/                 GCS, submódulo: última versión verificada con este sistema
 ```
 
@@ -47,9 +48,10 @@ images/build.sh noetic
 MUAV_HOSTS=<drones> ./container_run.sh bridge noetic       # ROS 1: multimaster con los drones
 ./container_run.sh bridge humble                           # ROS 2: descubrimiento por DDS
 
-# Desarrollo: monta ws/<distro> en /ws
+# Desarrollo: monta el workspace en /ws (ver "Desarrollo" abajo)
 vcs import ws/noetic/src < devices/vtol/noetic.repos       # el código que quieras tocar
 ./container_run.sh dev noetic
+MUAV_WS_JAZZY=~/ros2_px4_ws ./container_run.sh dev jazzy   # o tu propio workspace
 
 # Ver el GCS sin hardware (dentro de dev:noetic)
 roscore & /opt/muav/bridge/start.sh & /opt/muav/mock/mock_fleet.sh
@@ -63,6 +65,31 @@ tmuxinator start -p images/dev/tmuxinator_px4_ros2_sim.yml
 
 Un mensaje nuevo se declara **una sola vez**, en `images/msgs/<distro>.repos`. Las credenciales (DJI, VPN, WiFi)
 nunca van a git: cada dispositivo tiene `cfg/*.example`.
+
+## Desarrollo
+
+```
+imagen muav/dev:<distro>   se reconstruye; nada tuyo vive acá
+  /opt/ros/<distro> → /opt/muav/msgs (contrato) → /opt/muav/tools (Agent XRCE) → /ws    (overlays, muav_env.sh)
+  /opt/px4/PX4-Autopilot   SITL compilado (jazzy: el PX4 del contrato + Gazebo Harmonic)
+volumen  $MUAV_WS_<DISTRO> (o ws/<distro>)  →  /ws     src, build, install y log quedan en el HOST
+```
+
+- **El workspace entero vive en el host** y se monta siempre en `/ws`: recrear el contenedor o reconstruir la imagen
+  no borra ni el código ni la compilación. Las dependencias de apt sí viven en el contenedor:
+  `/opt/muav/ws_rosdep.sh` (el devcontainer lo corre solo al crearse).
+- **Tu workspace**: `export MUAV_WS_JAZZY=$HOME/ros2_px4_ws` (en tu `~/.zshrc`). Una variable por distro, así
+  `dev:noetic` no monta el de Jazzy. Sin ella, `ws/<distro>` (gitignored).
+- **Terminal / tmux**: `./container_run.sh dev jazzy` crea `muav_dev_jazzy` o entra con `docker exec`; `restart` lo
+  recrea. Si el contenedor existente monta OTRO workspace, corta con error en vez de compilar donde no creés.
+- **VS Code**: abrir este repo → *Reopen in Container* → `jazzy` o `jazzy-nvidia`. Requiere `MUAV_WS_JAZZY` (el
+  devcontainer no admite un default que dependa de otra variable) y `images/build.sh jazzy`. zsh + oh-my-zsh, ROS
+  cargado en bash y zsh.
+- **Los dos a la vez**: con el devcontainer en marcha (`muav_devcontainer_jazzy`), `container_run.sh dev jazzy` y los
+  tmuxinator entran en ÉL: un solo entorno. Cerrar VS Code no lo para (`shutdownAction: none`):
+  `docker stop muav_devcontainer_jazzy`.
+- `ROS_DOMAIN_ID` del host pasa a dev, bridge y drones.
+- Los archivos que se crean en `/ws` son de root (el contenedor corre como root).
 
 ## Repos relacionados
 

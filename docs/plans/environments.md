@@ -62,6 +62,10 @@ no se editan ni se commitean. Si hace falta un cambio en otro repo, se anota en 
     el usuario.
 20. **Micro-XRCE-DDS Agent `v2.4.3`** (el del `.repos` del GCS y del workspace Jazzy local). Confirmado por el usuario.
 21. **Sin mock ROS 2 en R3**: el SITL de `dev:jazzy` hace de dron. Queda para después.
+22. **Dev: el workspace ENTERO en el host, montado siempre en `/ws`** (`install/` guarda rutas absolutas). Ruta por
+    `MUAV_WS_<DISTRO>` (una por distro), por defecto `ws/<distro>`. Terminal y VS Code (`.devcontainer/jazzy{,-nvidia}`)
+    usan la misma imagen y el mismo `/ws`; con el devcontainer en marcha, `container_run.sh dev` entra en él (un solo
+    entorno). Confirmado por el usuario (A+B+D; usa devcontainer, tmux y terminal).
 
 ## Estructura actual
 
@@ -129,10 +133,16 @@ Tags de imagen: `muav/<rol>:<distro>` (x86 y multi-arch), `muav/m210:noetic`, `m
    `uav_1` (interfaz `px4_ros2`).
 7. Companion: `images/build.sh jazzy base`, `devices/px4_ros2/container_build.sh`, `tmuxinator.yml id=<n>` con el
    firmware en `UXRCE_DDS_NS_IDX=<n>`.
+8. Devcontainer: `export MUAV_WS_JAZZY=$HOME/ros2_px4_ws`, VS Code → *Reopen in Container* → `jazzy-nvidia`. Terminal
+   zsh con `ros2` cargado, `/opt/muav/ws_rosdep.sh` corrido, `gz sim` abre la GUI; después `./container_run.sh dev
+   jazzy` desde tmux debe decir "devcontainer de VS Code en marcha".
 
 ## Después del plan (no entra en R1–R3)
 
 - Mock ROS 2 (PSDK / PX4 ROS 2) para `dev`: `images/dev/mock/` es solo ROS 1 (decisión 21).
+- Dev como el usuario del host (`--user`), para que `/ws` no se llene de archivos de root: hay que crear el usuario en la
+  imagen y mover lo que asume `/root` (`.bashrc`, rosdep, apt). Tocar `images/base`, después de verificar.
+- Devcontainer de `noetic`/`humble`: copiar `.devcontainer/jazzy*` cambiando la distro (si se usa).
 - `dev:humble` sin SITL: el contrato Humble es PX4 `v1.15.4`; si hace falta, mismo patrón que Jazzy con ese tag.
 - Subir el contrato Jazzy cuando salga un PX4 nuevo: `images/msgs/jazzy.repos` (`px4_msgs`) y
   `devices/px4_ros2/px4.env` JUNTOS, los topics de `px4_ros2.yaml` del GCS y `config/topics.yaml` del offboard.
@@ -183,6 +193,12 @@ Otros:
 - PX4 `Tools/copy_to_ros_ws.sh` pisa los `.msg` de `px4_msgs` con los del firmware: no usarlo sobre el contrato.
 - PX4 `Tools/setup/ubuntu.sh` usa `sudo` y NO detecta Docker solo (`RUNS_IN_DOCKER` lo pasa quien lo llama): las
   bases `ros:*` traen `sudo`, así que funciona sin esa variable.
+- devcontainer.json NO anida variables: `${localEnv:X:${localWorkspaceFolder}/…}` sale roto (probado con el CLI
+  `devcontainer read-configuration`). Defaults solo literales.
+- Feature `common-utils` con `username: automatic` en Ubuntu 24.04 elige al usuario `ubuntu` (UID 1000) y deja root sin
+  zsh: `username: none`. El devcontainer de `~/ros2_px4_ws/src/work` funcionaba porque Humble (22.04) no lo tiene, y
+  su `devcontainer-nvidia.json` tiene mal la URL de `zsh-syntax-highlighting` (`zsh-users/zsh-users/…`).
+- Un `.zshrc` no carga `setup.bash`: `muav_env.sh` elige `setup.zsh` o `setup.bash` según el shell.
 - Micro-XRCE-DDS Agent fuera de colcon usa por defecto la superbuild (baja su propio Fast-DDS). Su `colcon.pkg` fuerza
   el de `/opt/ros`: compilarlo con colcon.
 

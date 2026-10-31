@@ -1,7 +1,8 @@
 # Plan: entornos ROS del sistema (GCS, dispositivos, desarrollo)
 
-Estado (2026-10-31): **R1 y R2 escritos y pusheados, NADA construido ni probado. Limpieza de R2 hecha. Sigue: R3.**
-Rama: `refactor/rename-packages` (HEAD `02560bb`, 33 commits desde `d0dd48a`).
+Estado (2026-10-31): **R1, R2 y R3 escritos y pusheados, NADA construido ni probado. Sigue: la verificación del
+usuario (abajo); con eso, cerrar el plan.**
+Rama: `refactor/rename-packages` (desde `d0dd48a`; `git log` para el HEAD).
 
 Alcance: SOLO este repo (`/home/grvc/work/multiUAV_system`). Los demás repos se LEEN y se referencian por `.repos`,
 no se editan ni se commitean. Si hace falta un cambio en otro repo, se anota en "Fuera de este repo".
@@ -9,7 +10,7 @@ no se editan ni se commitean. Si hace falta un cambio en otro repo, se anota en 
 ## Para retomar (leer primero)
 
 1. `git log --oneline d0dd48a..HEAD`: qué se hizo, un commit por paso.
-2. Este plan: decisiones (no se re-discuten), estado y el arranque de R3.
+2. Este plan: decisiones (no se re-discuten), estado y verificación pendiente.
 3. `README.md` (mapa) y `devices/<x>/README.md` (cada dispositivo).
 4. Reglas que se aplicaron en todo R1/R2 y siguen en R3:
    - Versiones fijadas por **commit** en los `.repos` (tag si existe); verificar con `git ls-remote` que el commit
@@ -54,24 +55,34 @@ no se editan ni se commitean. Si hace falta un cambio en otro repo, se anota en 
     `humble.repos` (PSDK) y `noetic.repos` (OSDK); sin Jazzy (L4T r36.4 = Ubuntu 22.04, Jazzy solo tiene apt en 24.04).
 17. **colcon compila también los paquetes catkin**: un solo `images/msgs/Dockerfile` para las tres distros.
 18. **M600 fuera** (no se usa). **Melodic fuera** (todos los M210 en Noetic).
+19. **Contrato Jazzy: `px4_msgs` @`6cdc4f5`** (en `main` de GitHub; "Update to PX4 f629d451"). Es lo que corre en
+    `~/ros2_px4_ws` y coincide con lo que el GCS escucha (`vehicle_status_v4`, `battery_status_v1`,
+    `vehicle_local_position_v1`, `vehicle_command_ack_v1`). NO `main`: el 2026-10-30 (`83cd992`) pasó a
+    `VehicleStatus` v5 / `VehicleCommandAck` v2. Ningún tag sirve (`v1.17.0` tiene `VehicleStatus` v1). Confirmado por
+    el usuario.
+20. **Micro-XRCE-DDS Agent `v2.4.3`** (el del `.repos` del GCS y del workspace Jazzy local). Confirmado por el usuario.
+21. **Sin mock ROS 2 en R3**: el SITL de `dev:jazzy` hace de dron. Queda para después.
 
 ## Estructura actual
 
 ```
-images/                  base/ msgs/ bridge/ dev/ (+ dev/mock/, dev/tmuxinator_px4_sim.yml), build.sh
+images/                  base/ msgs/ bridge/ dev/ (+ dev/mock/, dev/tmuxinator_px4{,_ros2}_sim.yml), build.sh
   msgs/noetic.repos      MUAV_GCS_interfaces ros1 @4c09d61 + Onboard-SDK-ROS @d7ee4b4
   msgs/humble.repos      MUAV_GCS_interfaces @59ebddf + psdk_ros2 @8b65dd5 + px4_msgs v1.15.4
+  msgs/jazzy.repos       MUAV_GCS_interfaces @59ebddf + px4_msgs @6cdc4f5
 devices/
   common/                osdk/{install_osdk.sh,entrypoint_osdk.sh}, multimaster_watch.sh, boot/ (hora desde el GCS)
   m300/                  Jetson L4T r36.4: opencv → ros2 → psdk (Humble) | opencv → ros1 (fuentes) → osdk (Noetic)
   m210/                  Raspberry Pi, Noetic sobre muav/base:noetic
   vtol/                  Raspberry Pi, PX4 por mavros, Noetic sobre muav/base:noetic
+  px4_ros2/              PX4 uXRCE-DDS, Jazzy sobre muav/base:jazzy; px4.env = el PX4 del contrato (f629d451)
 container_run.sh         dev|bridge <distro> | <dispositivo> ...
 ws/<distro>/             gitignored, montado en /ws de dev
 multiuav_gui/            submódulo GCS (7d4b1df)
 ```
 
-Tags de imagen: `muav/<rol>:<distro>` (x86 y multi-arch), `muav/m210:noetic`, `muav/vtol:noetic`; Jetson:
+Tags de imagen: `muav/<rol>:<distro>` (x86 y multi-arch), `muav/m210:noetic`, `muav/vtol:noetic`,
+`muav/px4_ros2:jazzy`; Jetson:
 `opencv-cuda`, `ros-humble`, `ros-humble-psdk`, `ros-noetic`, `ros-noetic-osdk` `:l4t-r36.4.0`.
 
 ## Estado por rebanada
@@ -90,7 +101,22 @@ Tags de imagen: `muav/<rol>:<distro>` (x86 y multi-arch), `muav/m210:noetic`, `m
   `devices/m300/cfg/` (`UserConfig_osdk.txt`) y `devices/m300/cfg/legacy/` (las 2 de PSDK en formato viejo: pasarlas a
   mano a `psdk_params.yaml` y `link_config.json`).
 
-### Verificación pendiente de R1+R2 (la hace el usuario; si algo falla, se arregla en la sesión)
+### R3 — Jazzy + PX4 ROS 2: escrito, sin construir
+- `images/msgs/jazzy.repos` (decisión 19). `bridge:jazzy` sin cambios (genérico).
+- `devices/px4_ros2`: Agent `v2.4.3` + `MUAV_px4_offboard` @`6864e57` + `mqtt_client` @`cb43b6c` (`jazzy.repos`) +
+  translation node de PX4 `f629d451` (`px4.env` + `fetch_translation_node.sh`: un commit, dos carpetas, 440 KB).
+  Solo perfil Jazzy (no Humble): el offboard compilado contra `px4_msgs` v1.15.4 le mandaría al GCS la estructura vieja.
+- `dev:jazzy`: Agent en `/opt/muav/tools` (nueva capa de `muav_env.sh`) del MISMO `jazzy.repos`; PX4 SITL de
+  `px4.env` + Gazebo Harmonic (`ubuntu.sh`) + `ros-jazzy-ros-gz`; `images/dev/tmuxinator_px4_ros2_sim.yml`.
+- `bridge` (todas las distros): `--ipc host`, igual que `dev`. Sin eso, Fast-DDS entre contenedores del mismo host
+  descubre pero no recibe datos.
+- Verificado sin construir: `colcon list` y `rosdep install -s` sobre los `.repos` reales en `ros:jazzy-ros-base` (todas las
+  claves resuelven; entran exactamente 8 paquetes), `docker build --check` (base pública), render ERB de los dos
+  tmuxinator, `bash -n`, `fetch_translation_node.sh` corrido de verdad. `px4_msgs` `6cdc4f5` == `msg/`+`srv/` de PX4
+  `f629d451` (diff vacío). `UXRCE_DDS_NS_IDX`/`PX4_UXRCE_DDS_NS` → `uav_<n>`, SITL instancia 0 → sysid 1, UDP 8888
+  (leído en `rcS` y `uxrce_dds_client.cpp` de ese commit).
+
+### Verificación pendiente de R1+R2+R3 (la hace el usuario; si algo falla, se arregla en la sesión)
 1. `images/build.sh humble` y `images/build.sh noetic` (x86). Lo primero que puede fallar: `dji_osdk_ros` con
    `ONLY_INTERFACES` (`modules/CMakeLists.txt` hace `add_dependencies(${PROJECT_NAME} INTERFACE ...)`).
 2. `./container_run.sh dev noetic` → `roscore & /opt/muav/bridge/start.sh & /opt/muav/mock/mock_fleet.sh`: el GCS
@@ -98,32 +124,18 @@ Tags de imagen: `muav/<rol>:<distro>` (x86 y multi-arch), `muav/m210:noetic`, `m
 3. Jetson: `devices/m300/container_build.sh` (horas: OpenCV CUDA) y los dos tmuxinator.
 4. Pi: `images/build.sh noetic base`, `devices/m210/container_build.sh`, `devices/vtol/container_build.sh`.
 5. Telemetría real en el GCS por `bridge:humble` (PSDK) y `bridge:noetic` (OSDK, PX4 mavros).
+6. `images/build.sh jazzy` (x86; `dev` compila PX4: lo primero que puede fallar es `ubuntu.sh` dentro de Docker o
+   `make px4_sitl` sin GPU). Luego `tmuxinator_px4_ros2_sim.yml` + `bridge:jazzy` o el bridge de dev: el GCS debe ver
+   `uav_1` (interfaz `px4_ros2`).
+7. Companion: `images/build.sh jazzy base`, `devices/px4_ros2/container_build.sh`, `tmuxinator.yml id=<n>` con el
+   firmware en `UXRCE_DDS_NS_IDX=<n>`.
 
-## R3 — Jazzy + PX4 ROS 2 (siguiente)
+## Después del plan (no entra en R1–R3)
 
-Objetivo: `images/{base,msgs,bridge,dev}` para Jazzy y `devices/px4_ros2` con `ARG ROS_DISTRO` (humble | jazzy).
-Los Dockerfiles de `images/` ya son genéricos por distro: R3 es sobre todo el contrato, el dispositivo y el dev.
-
-Datos ya relevados (no repetir):
-- **`MUAV_GCS_interfaces`**: el MISMO commit que Humble (`59ebddf7a8ae7bc48241018f9880d75d57f4d307`). El GCS tiene
-  una sola definición. Checkout de desarrollo: `~/ros2_px4_ws/src/work/MUAV_GCS_interfaces` (Jazzy).
-- **`px4_msgs` en Jazzy: DECIDIR al empezar.** La decisión 15 fija `v1.15.4` para Humble; el GCS
-  (`multiuav_gcs/infra/repos/ros2_px4.repos` y `server/config/devices/interfaces/px4_ros2.yaml`) usa `main` y topics
-  versionados (`vehicle_status_v4`, `battery_status_v1`) que NO existen en 1.15. Preguntar al usuario si Jazzy sigue
-  la decisión 15 o va a `main`.
-- **Micro-XRCE-DDS Agent: versiones distintas.** `px4_ros2_docker/Docker/ros2_microdds.Dockerfile` compila `v3.0.1`;
-  el `.repos` del GCS dice `v2.4.3`. Elegir una al empezar.
-- Lo que el GCS espera a bordo en Jazzy (`multiuav_gcs/infra/repos/ros2_px4.repos`, por rama: hay que FIJAR):
-  `px4_msgs`, `Micro-XRCE-DDS-Agent`, `MUAV_GCS_interfaces`, `arpoma16/mqtt_client` (`muav/service-bridge`, protocolo
-  mqtt), `arpoma16/MUAV_px4_offboard` (`main`).
-- **Translation node** de PX4 (`PX4-Autopilot/msg/translation_node`): uno por dron, con su namespace; compilar desde
-  un PX4 igual o más nuevo que el más nuevo de los dos lados (`multiuav_gcs/infra/external.md` › Versiones de
-  mensajes de PX4). Los servicios no se traducen en Humble.
-- Fuente a copiar (no tocar): `~/work/px4_ros2_docker` (`Docker/{ros2,ros2_microdds,px4_gz,ros2_ws,ros_gz}.Dockerfile`,
-  `.repos`, `tmuxinator/`). Clon Jazzy de trabajo: `~/ros2_px4_ws/src/work` (`compose2`).
-- `images/dev/Dockerfile` ya maneja ROS 2 (`ros-dev-tools`). Para PX4 en Jazzy: Gazebo Harmonic (`ros-gz`), no
-  Gazebo Classic: ver `px4_gz.Dockerfile` y `ros_gz.Dockerfile`.
-- `images/dev/mock/` es solo ROS 1. Un mock ROS 2 (PSDK / PX4 ROS 2) sería trabajo nuevo, si se quiere.
+- Mock ROS 2 (PSDK / PX4 ROS 2) para `dev`: `images/dev/mock/` es solo ROS 1 (decisión 21).
+- `dev:humble` sin SITL: el contrato Humble es PX4 `v1.15.4`; si hace falta, mismo patrón que Jazzy con ese tag.
+- Subir el contrato Jazzy cuando salga un PX4 nuevo: `images/msgs/jazzy.repos` (`px4_msgs`) y
+  `devices/px4_ros2/px4.env` JUNTOS, los topics de `px4_ros2.yaml` del GCS y `config/topics.yaml` del offboard.
 
 ## Fuera de este repo (pendientes del usuario o de otros repos)
 
@@ -138,12 +150,18 @@ Datos ya relevados (no repetir):
 GCS (`multiuav_gcs`):
 - `infra/compose/compose.ros1.yaml` sobreescribe el `command` con `roslaunch aerialcore_gui connect_uas.launch`:
   quitarlo y pasar `MUAV_HOSTS` para usar `muav/bridge:noetic`. Igual para `compose.ros2.yaml` → `muav/bridge:<distro>`.
-- `px4_ros2.yaml` espera `px4_msgs` `main`; el contrato Humble es `v1.15.4` (decisión 15): alinear uno de los dos.
+- `px4_ros2.yaml` coincide con el contrato JAZZY (`px4_msgs` `6cdc4f5`). Con `bridge:humble` (`v1.15.4`, decisión 15)
+  no: PX4 ROS 2 va por `bridge:jazzy`.
+- `infra/repos/ros2_px4.repos` fija por RAMA y ya está roto: `px4_msgs` `main` pasó a `VehicleStatus` v5 el
+  2026-10-30. Reemplazar por `images/msgs/jazzy.repos` + `devices/px4_ros2/jazzy.repos` de este repo.
+- `infra/external.md` dice "`px4_msgs` `main` (= PX4 1.18)" y "PX4-Autopilot `main`": pasar a `6cdc4f5` / `f629d451`.
 - `infra/repos/` y la parte de mensajes de `infra/external.md` → citar este repo. `infra/local.env` con una sola
   `MUAV_SYSTEM_DIR`.
 - Actualizar el puntero del submódulo `multiuav_gui` (hoy `7d4b1df`) tras probar el conjunto.
 
 Otros:
+- `MUAV_px4_offboard` (`~/ros2_px4_ws/src/work`): 4 archivos modificados sin commitear (`bt/commands.py`,
+  `bt/offboard_mission_bt.py`, `config/bt_mission.yaml`, `docs/gcs_commands.md`) NO están en el pin `6864e57`.
 - `wirispro_manager` (`miggilcas`, privado o borrado): mientras no sea accesible, el VTOL usa `onboard_px4` `main`, sin
   el servicio de la WIRIS Pro (`feature/wirispro` depende de él).
 - `onboard_px4` `atlas.launch`: `fcu_url` y `gcs_url` (`udp://@192.168.0.123:14550`) escritos, sin argumentos.
@@ -160,6 +178,13 @@ Otros:
 - `ros_rtsp` lee su config de `$(find ros_rtsp)/config/stream_setup.yaml` sin argumento: se monta encima.
 - `simple_vs` `main` arma el namespace como `uav_<id>`: pasar el NÚMERO (`uav_id:=2`).
 - Bash: un `trap` en INT/TERM que no hace `exit` deja vivo el bucle del script.
+- `px4_msgs` `main` NO es una versión: cambia la estructura sin aviso (2026-10-30: `VehicleStatus` v4 → v5). Siempre
+  por commit, y el mismo PX4 en `px4.env`.
+- PX4 `Tools/copy_to_ros_ws.sh` pisa los `.msg` de `px4_msgs` con los del firmware: no usarlo sobre el contrato.
+- PX4 `Tools/setup/ubuntu.sh` usa `sudo` y NO detecta Docker solo (`RUNS_IN_DOCKER` lo pasa quien lo llama): las
+  bases `ros:*` traen `sudo`, así que funciona sin esa variable.
+- Micro-XRCE-DDS Agent fuera de colcon usa por defecto la superbuild (baja su propio Fast-DDS). Su `colcon.pkg` fuerza
+  el de `/opt/ros`: compilarlo con colcon.
 
 ## Mapa de esta máquina (2026-10-31)
 

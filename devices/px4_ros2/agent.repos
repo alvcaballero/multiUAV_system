@@ -1,0 +1,9 @@
+# Micro-XRCE-DDS Agent (decisión 20): un solo lugar para el dron (devices/px4_ros2/Dockerfile) y dev (todas las
+# distros ROS 2, images/dev/install_agent.sh). Neutro de distro: cada uno lo compila como su ROS permite.
+#   Jazzy:  colcon (su colcon.pkg fuerza el Fast-DDS de /opt/ros: igual que ~/ros2_px4_ws).
+#   Humble: cmake superbuild (con el Fast-DDS del sistema pide fastcdr 2; Humble trae 1.0.x).
+repositories:
+  Micro-XRCE-DDS-Agent:
+    type: git
+    url: https://github.com/eProsima/Micro-XRCE-DDS-Agent.git
+    version: v2.4.3

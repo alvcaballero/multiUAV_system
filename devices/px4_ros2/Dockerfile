@@ -21,10 +21,12 @@ WORKDIR /root/app_ws
 # Mismo nombre en origen (<distro>.repos): se copian con el nombre de su rol para no pisarse.
 COPY images/msgs/${ROS_DISTRO}.repos /root/app_ws/repos/contract.repos
 COPY devices/px4_ros2/${ROS_DISTRO}.repos /root/app_ws/repos/device.repos
+COPY devices/px4_ros2/agent.repos /root/app_ws/repos/agent.repos
 COPY devices/px4_ros2/px4.env devices/px4_ros2/fetch_translation_node.sh /opt/muav/px4/
 RUN mkdir -p src/external \
     && vcs import --input repos/contract.repos src \
     && vcs import --input repos/device.repos src \
+    && vcs import --input repos/agent.repos src \
     && /opt/muav/px4/fetch_translation_node.sh src
 
 SHELL ["/bin/bash", "-c"]

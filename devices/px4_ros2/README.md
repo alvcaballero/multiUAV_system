@@ -7,7 +7,8 @@ PX4 habla uORB ↔ DDS con su cliente uXRCE-DDS; en la companion corren el **Age
 | Archivo | Qué es |
 |---|---|
 | `Dockerfile` | Sobre `muav/base:jazzy` (multi-arch). Contrato + `jazzy.repos` + translation node, compila solo lo que piden |
-| `jazzy.repos` | Agent XRCE-DDS `v2.4.3`, `MUAV_px4_offboard`, `mqtt_client` (por commit) |
+| `jazzy.repos` | `MUAV_px4_offboard`, `mqtt_client` (por commit) |
+| `agent.repos` | Agent XRCE-DDS `v2.4.3`: lo comparten el dron y `dev` (todas las distros ROS 2) |
 | `px4.env` | El PX4 del contrato (`f629d451`): de ahí sale el translation node y el SITL de `dev:jazzy` |
 | `fetch_translation_node.sh` | Trae `translation_node` y `px4_msgs_old` de ese PX4 (un commit, dos carpetas) |
 | `container_build.sh` / `container_run.sh` | Build y arranque EN la companion |

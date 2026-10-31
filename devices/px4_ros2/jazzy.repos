@@ -3,18 +3,12 @@
 #
 # NO están aquí, a propósito:
 #   - px4_msgs, MUAV_GCS_interfaces: vienen del CONTRATO.
+#   - Micro-XRCE-DDS Agent: agent.repos (lo comparte con dev, que no importa este archivo).
 #   - translation_node + px4_msgs_old: salen de PX4-Autopilot (px4.env + fetch_translation_node.sh), no de un repo
 #     propio, y vcs no sabe clonar solo dos carpetas de PX4.
 # Sin humble.repos: compilado contra px4_msgs v1.15.4 (contrato Humble) el offboard le mandaría al GCS la estructura
 # vieja (ver README).
 repositories:
-  # Puente uORB ↔ ROS 2 (decisión 20). Su colcon.pkg compila contra el Fast-DDS de /opt/ros (sin superbuild): igual
-  # que el que corre en ~/ros2_px4_ws.
-  Micro-XRCE-DDS-Agent:
-    type: git
-    url: https://github.com/eProsima/Micro-XRCE-DDS-Agent.git
-    version: v2.4.3
-
   # offboard_mission_bt, gcs_heartbeat, mqtt_bridge (main). ad4ab69: topics fmu/out versionados según px4_msgs.
   MUAV_px4_offboard:
     type: git

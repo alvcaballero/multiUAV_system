@@ -8,7 +8,8 @@
 #     -DONBOARD_SDK_ROS_ONLY_INTERFACES=ON (solo msgs/srvs, sin OSDK); el dispositivo, completo.
 #   - Onboard-SDK (dji-sdk/Onboard-SDK): no es un paquete catkin (CMake puro, `make install` a /usr/local); lo necesita
 #     dji_osdk_ros completo. Se fija en el Dockerfile del perfil OSDK: master @ 118e2825a347499efb8ed253146552c5b9b10779.
-#   - aerialcore_common + multiuav_interfaces (mensajes): CONTRATO, los dos en transición.
+#   - aerialcore_common + multiuav_interfaces (mensajes): CONTRATO, los dos en transición
+#     (MUAV_GCS_interfaces rama ros1 @ 4c09d61).
 repositories:
   # Nodos de misión (dji_waypointV2_node) y launch de a bordo (run_M300-rtsp.launch, multimaster-noetic.launch).
   # El Jetson corre ae6fe99 + run_M300-rtsp.launch sin trackear; 5e0e501 es ese mismo launch ya commiteado

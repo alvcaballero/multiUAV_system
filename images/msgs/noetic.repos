@@ -1,0 +1,24 @@
+# CONTRATO de mensajes ROS 1 Noetic del sistema. Lo heredan bridge:noetic, dev:noetic y los dispositivos Noetic
+# (M300 OSDK, M210, M600, PX4 mavros). Un mensaje nuevo se declara AQUÍ y solo aquí.
+# Versiones fijadas por COMMIT, nunca por rama (decisión 12). El comentario dice de qué rama sale cada commit.
+#   vcs import ws/noetic/src < images/msgs/noetic.repos
+#
+# R2 PENDIENTE en images/msgs/Dockerfile: hoy es solo ROS 2, y su MSGS_REGEX ('.*_(msgs|interfaces)$') deja fuera a
+# aerialcore_common y a dji_osdk_ros. Este último va con -DONBOARD_SDK_ROS_ONLY_INTERFACES=ON (decisión 7).
+repositories:
+  # Mensajes del GCS en ROS 1 (rama ros1, HUÉRFANA: no comparte historia con main, que es ROS 2). Dos paquetes con el
+  # mismo contenido, en transición (decisión 8):
+  #   aerialcore_common   → lo que corre la flota hoy (idéntico a multiUAV_system main @ aeb0679)
+  #   multiuav_interfaces → el nombre nuevo
+  # Se borra aerialcore_common cuando ningún dron ni interfaz del GCS lo use.
+  MUAV_GCS_interfaces:
+    type: git
+    url: https://github.com/arpoma16/MUAV_GCS_interfaces.git
+    version: 4c09d616ccefdf0762c46be7818260a268598db6   # ros1
+
+  # dji_osdk_ros (decisión 7). El bridge lo compila solo-interfaces (sin el Onboard-SDK); los dispositivos OSDK, completo
+  # con el Onboard-SDK instalado (dji-sdk/Onboard-SDK master @ 118e2825, fijado en su Dockerfile).
+  Onboard-SDK-ROS:
+    type: git
+    url: https://github.com/miggilcas/Onboard-SDK-ROS.git
+    version: d7ee4b457b56b92c0f817bcef2e3c461f80389ac   # dev

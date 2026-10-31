@@ -2,6 +2,7 @@
 # Arranca un contenedor del sistema.
 #   ./container_run.sh dev <distro> [restart]     desarrollo: monta ws/<distro> en /ws
 #   ./container_run.sh bridge <distro>            rosbridge del GCS (primer plano, --rm)
+#       noetic: MUAV_HOSTS=<gcs>,<dron1>,... ./container_run.sh bridge noetic   (multimaster)
 #   ./container_run.sh <dispositivo> [args...]    delega en devices/<dispositivo>/container_run.sh
 # Las imágenes salen de images/build.sh <distro>.
 set -e
@@ -25,7 +26,10 @@ ACTION=${2:-}
 IMAGE="muav/$TARGET:$DISTRO"
 
 if [ "$TARGET" = bridge ]; then
-    exec docker run --rm -it --name "muav_bridge_$DISTRO" --network host "$IMAGE"
+    # --env VAR sin valor: pasa la del host solo si está definida. MUAV_HOSTS: hosts del multimaster (noetic).
+    exec docker run --rm -it --name "muav_bridge_$DISTRO" --network host \
+        --env MUAV_HOSTS --env ROS_MASTER_URI --env ROS_HOSTNAME --env ROS_IP --env ROS_DOMAIN_ID \
+        "$IMAGE"
 fi
 
 # ── dev ─────────────────────────────────────────────────────────────────────────────────────────

@@ -79,4 +79,8 @@ RUN if [ "$ROS_DISTRO" = noetic ] && [ "$WITH_PX4_SIM" = true ]; then \
 COPY images/bridge/start.sh images/bridge/noetic.launch images/bridge/multimaster.launch /opt/muav/bridge/
 RUN chmod +x /opt/muav/bridge/start.sh
 
+# Drones FALSOS para ver y probar el GCS sin hardware (ROS 1): /opt/muav/mock/mock_fleet.sh. Ver images/dev/mock/.
+COPY images/dev/mock/ /opt/muav/mock/
+RUN chmod +x /opt/muav/mock/*.sh /opt/muav/mock/*.py
+
 WORKDIR /ws

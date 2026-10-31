@@ -1,9 +1,15 @@
-#! /usr/bin/env python
-# the main module for ROS-python programs
+#!/usr/bin/env python3
+# Dron FALSO de ROS 1: expone los topics y servicios de un dron real (por categoría) para ver y probar el GCS sin
+# hardware. Vuela la misión que le cargan. Antes: multiuav_bringup/scripts/uavServices.py (+ simulate_*.launch).
+# Solo necesita los mensajes del contrato noetic (multiuav_interfaces, dji_osdk_ros): corre en dev:noetic.
+#   python3 uav_mock.py __name:=uav_14_mock _ns:=uav_14 _category:=dji_M300 _lat:=37.19 _lon:=-6.70
+# Varios a la vez: mock_fleet.sh (cada uno con su __name, si no ROS 1 echa al anterior).
+# Tipos: usa multiuav_interfaces; el GCS pide aerialcore_common. ROS 1 compara el MD5 (contenido idéntico), no el nombre.
 import rospy
 import time
 import threading
-import os
+import shutil
+from pathlib import Path
 from enum import Enum
 import math
 # ros services
@@ -48,7 +54,8 @@ dictCategory = {
 
 
 class SimpleDevice:
-    def __init__(self, name, homePoint=[37.193646, -6.702930, 0], category="dji_M300"):
+    def __init__(self, name, homePoint=[37.193646, -6.702930, 0], category="dji_M300", media_dir="/home/user/uav_media"):
+        self.media_dir = Path(media_dir)
         print("init-----"+name+'------'+str(homePoint)+"----"+category)
         # device Variables
         self.name = name
@@ -337,8 +344,17 @@ class SimpleDevice:
 
         print(valuex)
 
-        os.system(
-            " mkdir -p /home/user/uav_media/mission_"+str(valuex)+" && cp /home/user/uav_media/mission/* /home/user/uav_media/mission_"+str(valuex)+"/")
+        # Simula la descarga copiando <media_dir>/mission/* a <media_dir>/mission_<fecha>/. Sin shell: el nombre sale
+        # de lo que manda el GCS.
+        src = self.media_dir / "mission"
+        dst = self.media_dir / ("mission_" + Path(str(valuex)).name)
+        if src.is_dir():
+            dst.mkdir(parents=True, exist_ok=True)
+            for f in src.iterdir():
+                if f.is_file():
+                    shutil.copy2(f, dst)
+        else:
+            print("No existe %s: no hay archivos que simular" % src)
 
         try:
             print("call GCS finish donwload files service")
@@ -421,9 +437,10 @@ if __name__ == "__main__":
                      float(rospy.get_param('~lon')), 0]
     if rospy.has_param('~category'):
         category = rospy.get_param('~category')
+    media_dir = rospy.get_param('~media_dir', "/home/user/uav_media")
 
     try:
-        device = SimpleDevice(ns, homePoint, category)
+        device = SimpleDevice(ns, homePoint, category, media_dir)
         device.run()
     except rospy.ROSInterruptException:
         pass

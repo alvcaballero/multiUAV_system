@@ -17,5 +17,8 @@ devices/*/cfg/*
 
 # Workspaces de desarrollo (container_run.sh dev <distro>)
 ws/
+
+# Python
+__pycache__/
 # Stray "copy" files
 **/*[Cc]opy*.txt

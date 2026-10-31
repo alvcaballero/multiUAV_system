@@ -250,6 +250,21 @@ Estado (2026-10-31): pasos 1-4 escritos, **sin construir ni probar**. Falta el 5
   - mediamtx fijado por digest (índice multi-arch con `linux/arm64`). Corre en el host.
   - `images/base/muav_env.sh` carga `MUAV_WS` (el workspace del dispositivo) si la imagen la define.
   - Fuera de este repo: `atlas.launch` tiene escritos `fcu_url` y `gcs_url` (`udp://@192.168.0.123:14550`).
+- **R2: `dev:noetic` escrito (2026-10-31), sin compilar.** `images/dev/Dockerfile` sirve para todas las distros
+  (`ros-dev-tools` solo en ROS 2). En noetic agrega lo que hace falta para compilar en `/ws` el código de los drones
+  ROS 1 (Onboard-SDK `118e2825` vía `devices/common/osdk/install_osdk.sh`, mavros + datasets, multimaster,
+  GStreamer RTSP, libusb/ffmpeg) y **PX4 v1.14.4 SITL + Gazebo 11 compilado en la imagen** (`/opt/px4/PX4-Autopilot`,
+  con `Tools/setup/ubuntu.sh --no-nuttx` + `DONT_RUN=1 make px4_sitl_default gazebo-classic`).
+  `WITH_PX4_SIM=false` lo omite. Antes se clonaba y compilaba A MANO en el volumen (`initDev.sim.sh`), sobre
+  `px4io/px4-dev-ros-noetic`, una imagen sin versión fija.
+  - Bridge dentro (decisión 13): `/opt/muav/bridge/start.sh`, los mismos archivos que `bridge:<distro>`.
+  - `images/dev/tmuxinator_px4_sim.yml` (de `vtol/px4-vtol-sim.yaml`): roscore + `onboard_px4 px4-simulation.launch`
+    + SITL (`model=standard_vtol` por defecto) + bridge. Requiere `devices/vtol/noetic.repos` en `ws/noetic/src`.
+  - Lint: `docker build --check` sin avisos en todos los Dockerfiles nuevos (con bases públicas de reemplazo, porque
+    las `muav/*` todavía no existen).
+- **`multiuav_bringup/launch/simulate_{uav,muav}.launch`: rotos.** Lanzan `uavServices.py` del paquete
+  `multiuav_gcs_bringup`, un nombre que ya no existe tras el renombre. Solo los referencia un tmuxinator del GCS
+  viejo (submódulo). Decidir antes de la limpieza: ¿se borran o se rescata `uavServices.py`?
 - **rosdep y Noetic EOL**: `rosdep update` sin `--include-eol-distros` BORRA Noetic del caché, y deja de resolver
   claves (`nmea_msgs`, `theora_image_transport`; verificado). `images/base` actualiza con la opción y deja el alias
   `rosdep-update`. Los Dockerfiles no llaman a `rosdep update`: usan el caché de la imagen, que funciona.

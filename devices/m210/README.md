@@ -12,7 +12,8 @@ Ubuntu 20.04 y Noetic tiene apt para arm64, así que no hace falta compilar ROS 
 | `Dockerfile` | `muav/base:noetic` → Onboard-SDK + workspace (contrato + `noetic.repos`) |
 | `noetic.repos` | Paquetes propios: `onboard_dji` (rama `M210`), `simple_vs` (`main`, sin CUDA), `ros_rtsp` |
 | `cfg/UserConfig_osdk.txt.example` | Plantilla de credenciales DJI. El real está gitignored |
-| `config/ros_rtsp_stream_setup.yaml` | Streams RTSP. **Derivado del M300, a verificar** con el de la Pi |
+| `config/ros_rtsp_stream_setup.yaml` | Streams RTSP (`uav_2`: FPV, principal y principal reducida) |
+| `host/netplan.yaml.example` | Red del host (IP fija `10.42.0.43`, `usb0`, WiFi). Contraseñas WiFi fuera de git |
 | `container_build.sh` / `container_run.sh` | Construir y arrancar, EN la Pi |
 | `tmuxinator.yml` | Arranque a bordo: roscore, ConfigTool, misión, multimaster, resize, RTSP |
 
@@ -36,7 +37,8 @@ El workspace compila SOLO `--only-pkg-with-deps onboard_dji simple_vs ros_rtsp`:
    images/build.sh noetic base
    devices/m210/container_build.sh
    ```
-4. Revisar `config/ros_rtsp_stream_setup.yaml` contra la config real de la Pi.
+4. Red y arranque del host: `host/netplan.yaml.example` (completar las contraseñas WiFi) y
+   `sudo devices/common/boot/install.sh` (hora desde el GCS).
 
 ## Uso
 

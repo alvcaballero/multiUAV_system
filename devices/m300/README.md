@@ -27,6 +27,7 @@ Son **excluyentes**: el gadget USB del Jetson está en modo OSDK (CDC-ACM) o PSD
 | `container_build.sh` / `container_run.sh` | Construir y arrancar, EN el Jetson |
 | `set_usb_mode.sh` | Cambia el gadget USB del Jetson entre OSDK y PSDK |
 | `tmuxinator_psdk.yml` / `tmuxinator_osdk.yml` | Arranque a bordo de cada perfil |
+| `host/netplan.yaml.example` | Red del host (IP fija `10.20.0.51`, `usb0`, WiFi). Contraseñas WiFi fuera de git |
 
 Los dos workspaces compilan SOLO lo que piden los paquetes del M300, con las versiones del contrato:
 
@@ -63,6 +64,16 @@ Los dos workspaces compilan SOLO lo que piden los paquetes del M300, con las ver
    devices/m300/container_build.sh psdk          # solo rehacer el workspace PSDK (p. ej. tras cambiar un .repos)
    devices/m300/container_build.sh osdk          # solo rehacer el workspace OSDK
    ```
+
+## Red del host (de `multiuav_bringup/devices/M300/Readme.md`)
+
+- Netplan: `host/netplan.yaml.example` → `/etc/netplan/50-cloud-init.yaml` (completar contraseñas) y
+  `sudo netplan apply`.
+- Hora desde el GCS al arrancar: `sudo devices/common/boot/install.sh`.
+- Multimaster (OSDK) usa NOMBRES de host: el del GCS en el `/etc/hosts` del Jetson y el del Jetson en el del GCS.
+- Con varias interfaces de red, si el multimaster no engancha: `export ROS_IP=<ip del Jetson en la red del GCS>`
+  (y `ROS_HOSTNAME`) antes de arrancar.
+- Hardware OSDK: [manual del OSDK Expansion Module](https://dl.djicdn.com/downloads/matrice-300/20200617/OSDK_Expansion_Module_Product_Information.pdf#page=14.28).
 
 ## Uso
 

@@ -1,6 +1,8 @@
 #!/bin/bash
 # Arranca un contenedor del sistema.
-#   ./container_run.sh dev <distro> [restart]     desarrollo: monta ws/<distro> en /ws
+#   ./container_run.sh dev <distro> [restart]     desarrollo: monta el workspace en /ws (ver "dev" abajo)
+#       MUAV_WS_<DISTRO>=<dir>: workspace propio (ej. MUAV_WS_JAZZY=~/ros2_px4_ws); sin ella, ws/<distro>.
+#       Si el devcontainer de VS Code (muav_devcontainer_<distro>) está corriendo, entra en ESE: un solo entorno.
 #   ./container_run.sh bridge <distro>            rosbridge del GCS (primer plano, --rm)
 #       noetic: MUAV_HOSTS=<dron1>,<dron2>,... ./container_run.sh bridge noetic   (multimaster)
 #   ./container_run.sh <dispositivo> [args...]    delega en devices/<dispositivo>/container_run.sh
@@ -35,14 +37,39 @@ if [ "$TARGET" = bridge ]; then
 fi
 
 # ── dev ─────────────────────────────────────────────────────────────────────────────────────────
+# El workspace entero (src, build, install, log) vive en el HOST y se monta SIEMPRE en /ws: install/ guarda rutas
+# absolutas, así que la terminal y el devcontainer comparten compilación solo si los dos lo ven en /ws.
 CONTAINER_NAME="muav_dev_$DISTRO"
-WS_DIR="$ROOT/ws/$DISTRO"
+DEVCONTAINER_NAME="muav_devcontainer_$DISTRO"   # .devcontainer/<distro>*/devcontainer.json
+WS_VAR="MUAV_WS_${DISTRO^^}"
+WS_DIR="${!WS_VAR:-$ROOT/ws/$DISTRO}"
+WS_DIR="${WS_DIR/#\~/$HOME}"
 mkdir -p "$WS_DIR/src"
+WS_DIR="$(cd "$WS_DIR" && pwd -P)"
+
+# Qué monta en /ws un contenedor existente. Entrar en uno con OTRO workspace compila donde no creés, sin error.
+check_ws() {
+    local mounted
+    mounted=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/ws"}}{{.Source}}{{end}}{{end}}' "$1")
+    [ -d "$mounted" ] && mounted="$(cd "$mounted" && pwd -P)"   # misma forma que WS_DIR (sin symlinks)
+    if [ "$mounted" != "$WS_DIR" ]; then
+        echo "[run] ERROR: $1 monta '$mounted' en /ws, y pediste '$WS_DIR' ($WS_VAR)." >&2
+        echo "[run]   $2" >&2
+        exit 1
+    fi
+}
+
+if [ "$ACTION" != restart ] && [ -n "$(docker ps -qf name="^${DEVCONTAINER_NAME}$")" ]; then
+    check_ws "$DEVCONTAINER_NAME" "Cerrá VS Code o usá el mismo $WS_VAR que él."
+    echo "[run] devcontainer de VS Code en marcha: $DEVCONTAINER_NAME"
+    exec docker exec -it "$DEVCONTAINER_NAME" bash
+fi
 
 if [ -n "$(docker ps -qaf name="^${CONTAINER_NAME}$")" ]; then
     if [ "$ACTION" = restart ]; then
         docker rm -f "$CONTAINER_NAME" > /dev/null
     else
+        check_ws "$CONTAINER_NAME" "Recrealo con: $0 dev $DISTRO restart"
         docker start "$CONTAINER_NAME" > /dev/null
         exec docker exec -it "$CONTAINER_NAME" bash
     fi
@@ -58,9 +85,16 @@ DOCKER_ARGS=(
     --ipc host
     --env DISPLAY="$DISPLAY"
     --env QT_X11_NO_MITSHM=1
+    --env ROS_DOMAIN_ID
     --volume /tmp/.X11-unix:/tmp/.X11-unix:rw
+    --volume /etc/machine-id:/etc/machine-id:ro
     --volume "$WS_DIR":/ws
 )
+
+# Con xhost +local:docker alcanza; XAUTHORITY por si el servidor X exige cookie (Wayland/XWayland lo hace a veces).
+if [ -n "$XAUTHORITY" ] && [ -f "$XAUTHORITY" ]; then
+    DOCKER_ARGS+=(--env XAUTHORITY="$XAUTHORITY" --volume "$XAUTHORITY":"$XAUTHORITY":ro)
+fi
 
 # WSL: el servidor X vive en /mnt/wslg
 if grep -qi microsoft /proc/version; then

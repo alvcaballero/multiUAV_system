@@ -1,3 +1,0 @@
-# Enel common
-
-TBD

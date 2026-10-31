@@ -1,5 +1,0 @@
-string uav_id
-bool data
----
-bool success
-string msg

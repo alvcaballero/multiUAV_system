@@ -68,7 +68,7 @@ multiUAV_system/
     dev/                      compiladores, sim, bridge dentro
   devices/
     common/                   init a bordo: rc.local, synchdate, multimaster, VPN
-    m300/  m210/  m600/  px4_ros2/  px4_mavros/  vtol/
+    m300/  m210/  vtol/ (= px4_mavros)  px4_ros2/        (M600 fuera: no se usa)
       Dockerfile  <x>.repos  tmuxinator.yml  README.md (qué instalar a bordo y cómo)
   container_run.sh            container_run.sh <imagen|dispositivo>
   ws/                         gitignored: noetic/src  humble/src  jazzy/src
@@ -237,6 +237,19 @@ Estado (2026-10-31): pasos 1-4 escritos, **sin construir ni probar**. Falta el 5
   - Ojo: el `.bashrc` viejo del M210 usa rutas `/home/nvidia/...` (de Jetson); `devices/init` usa `/home/ubuntu`.
   - Verificado con los `.repos` reales: se compilan `aerialcore_common dji_osdk_ros onboard_dji ros_rtsp simple_vs`
     y rosdep resuelve todas las claves.
+- **R2: M600 FUERA (2026-10-31).** No se usa. Su tmuxinator lanzaba `beginner_tutorials`, un paquete que no está en
+  ningún repo. No hay `devices/m600`; `M600.yml` se va con `multiuav_bringup/`.
+- **R2: VTOL escrito (2026-10-31), sin compilar.** Es el `px4_mavros` del plan: Raspberry Pi, Noetic, antes nativo y
+  ahora sobre `muav/base:noetic`.
+  - `noetic.repos`: `onboard_px4` **main** (`89d6c79`), `grvc-ual` noetic (`95a9e7b`, por `px4_bringup`; ningún
+    script viejo lo instalaba), `arpoma16/grvc-utils` noetic (`122ff38`, por `mission_lib`).
+  - **No `feature/wirispro`**: depende de `wirispro_manager`, y `miggilcas/wirispro_manager` es privado o no existe
+    (solo hay un checkout local en `~/work/wirispro_manager`, `db7d5dd`). El VTOL pierde el servicio de la WIRIS Pro.
+  - Se compila solo `onboard_px4 px4_bringup` (4 de los 22 paquetes del `src/`). rosdep sobre esos y con
+    `--skip-keys gazebo_ros` (run_depend de `px4_bringup` solo para el modo sitl): sin Gazebo en la Pi. Verificado.
+  - mediamtx fijado por digest (índice multi-arch con `linux/arm64`). Corre en el host.
+  - `images/base/muav_env.sh` carga `MUAV_WS` (el workspace del dispositivo) si la imagen la define.
+  - Fuera de este repo: `atlas.launch` tiene escritos `fcu_url` y `gcs_url` (`udp://@192.168.0.123:14550`).
 - **rosdep y Noetic EOL**: `rosdep update` sin `--include-eol-distros` BORRA Noetic del caché, y deja de resolver
   claves (`nmea_msgs`, `theora_image_transport`; verificado). `images/base` actualiza con la opción y deja el alias
   `rosdep-update`. Los Dockerfiles no llaman a `rosdep update`: usan el caché de la imagen, que funciona.

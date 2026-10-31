@@ -1,0 +1,28 @@
+# Paquetes PROPIOS del dron PX4 por ROS 2 (Jazzy). Se importan junto al contrato images/msgs/jazzy.repos.
+# Relevado de multiuav_gcs/infra/repos/ros2_px4.repos (que fija por rama) y de ~/ros2_px4_ws. Versiones por COMMIT.
+#
+# NO están aquí, a propósito:
+#   - px4_msgs, MUAV_GCS_interfaces: vienen del CONTRATO.
+#   - translation_node + px4_msgs_old: salen de PX4-Autopilot (px4.env + fetch_translation_node.sh), no de un repo
+#     propio, y vcs no sabe clonar solo dos carpetas de PX4.
+# Sin humble.repos: compilado contra px4_msgs v1.15.4 (contrato Humble) el offboard le mandaría al GCS la estructura
+# vieja (ver README).
+repositories:
+  # Puente uORB ↔ ROS 2 (decisión 20). Su colcon.pkg compila contra el Fast-DDS de /opt/ros (sin superbuild): igual
+  # que el que corre en ~/ros2_px4_ws.
+  Micro-XRCE-DDS-Agent:
+    type: git
+    url: https://github.com/eProsima/Micro-XRCE-DDS-Agent.git
+    version: v2.4.3
+
+  # offboard_mission_bt, gcs_heartbeat, mqtt_bridge (main). ad4ab69: topics fmu/out versionados según px4_msgs.
+  MUAV_px4_offboard:
+    type: git
+    url: https://github.com/arpoma16/MUAV_px4_offboard.git
+    version: 6864e578f55908cb1e0295f7aaf2d8ae9502a25a   # main
+
+  # Protocolo mqtt del GCS: telemetría + bridge de servicios. Fork de ika-rwth-aachen.
+  mqtt_client:
+    type: git
+    url: https://github.com/arpoma16/mqtt_client.git
+    version: cb43b6c9e8d6bd65e40702d0a34a830c4b784fa5   # muav/service-bridge

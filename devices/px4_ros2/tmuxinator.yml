@@ -1,0 +1,66 @@
+# Dron PX4 por ROS 2 (Jazzy). Origen: ~/ros2_px4_ws/src/work/tmuxinator/{tmuxinatorreal,locscene_obstacles}.yaml.
+#   tmuxinator start -p devices/px4_ros2/tmuxinator.yml [id=1] [sysid=<id>] [agent="serial --dev /dev/ttyUSB0 -b 921600"]
+#                                                      [broker=<ip GCS>] [translate=true] [sys=~/multiUAV_system]
+# id: NÚMERO del dron. Namespace uav_<id>: en el firmware, UXRCE_DDS_NS_IDX=<id> (el client arma "uav_<id>").
+# sysid: MAV_SYS_ID del autopiloto (por defecto = id).
+# agent: argumentos de MicroXRCEAgent. Por Ethernet: agent="udp4 -p 8888".
+# broker: IP del broker MQTT del GCS (protocolo mqtt). Sin broker no se lanza el bridge MQTT: el GCS usa rosbridge.
+# translate: el firmware NO es el PX4 del contrato (devices/px4_ros2/px4.env) → translation node (uno por dron).
+<%
+default_id    = '1'
+default_agent = 'serial --dev /dev/ttyUSB0 -b 921600'
+default_sys   = '~/multiUAV_system'
+uav_id    = @settings["id"]     || default_id
+sysid     = @settings["sysid"]  || uav_id
+agent     = @settings["agent"]  || default_agent
+broker    = @settings["broker"]
+translate = @settings["translate"] == "true"
+sys_dir   = @settings["sys"]    || default_sys
+ns  = "uav_#{uav_id}"
+run = "#{sys_dir}/devices/px4_ros2/container_run.sh"
+%>
+
+name: px4_ros2
+root: ~/
+
+on_project_exit: docker stop px4_ros2; tmux kill-session -t px4_ros2
+
+on_project_first_start:
+  - 'echo "PX4 ROS 2  ns: <%= ns %>  sysid: <%= sysid %>  agent: <%= agent %>  mqtt: <%= broker || "no" %>  translation: <%= translate %>"'
+  <% if @args[0] == "-h" %>
+  - 'echo "Uso: id=<número> (default <%= default_id %>)  sysid=<n>  agent=\"<args>\" (default <%= default_agent %>)  broker=<ip>  translate=true  sys=<repo> (default <%= default_sys %>)"'
+  - exit
+  <% end %>
+
+windows:
+  - px4_ros2:
+      layout: tiled
+      panes:
+        # El primer panel crea el contenedor; el resto entra con docker exec.
+        - agent:
+            - <%= run %>
+            - MicroXRCEAgent <%= agent %>
+        <% if translate %>
+        - translation:
+            - sleep 3
+            - <%= run %>
+            - sleep 2
+            - ros2 run translation_node translation_node_bin --ros-args -r __ns:=/<%= ns %>
+        <% end %>
+        - offboard:
+            - sleep 3
+            - <%= run %>
+            - sleep 5
+            - ros2 launch muav_px4_offboard offboard_mission_bt.launch.py namespace:=<%= ns %> mav_sys_id:=<%= sysid %>
+        - heartbeat:
+            - sleep 3
+            - <%= run %>
+            - sleep 5
+            - ros2 launch muav_px4_offboard gcs_heartbeat.launch.py namespace:=<%= ns %>
+        <% if broker %>
+        - mqtt:
+            - sleep 3
+            - <%= run %>
+            - sleep 5
+            - ros2 launch muav_px4_offboard mqtt_bridge.launch.py namespace:=<%= ns %> broker_host:=<%= broker %>
+        <% end %>

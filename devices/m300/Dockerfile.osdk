@@ -43,16 +43,9 @@ RUN apt-get update && apt-get install -y \
 # Noetic lo necesita
 RUN ln -s /usr/bin/python3 /usr/bin/python || true
 
-# 2. DJI Onboard-SDK (fijado). Los dos sed: includes que faltan con el gcc 11 de Jammy.
-RUN git clone https://github.com/dji-sdk/Onboard-SDK.git /root/Onboard-SDK && \
-    cd /root/Onboard-SDK && \
-    git checkout ${OSDK_VERSION} && \
-    sed -i '1i #include <string>\n#include <cstdio>' osdk-core/modules/inc/filemgr/impl/mmap_file_buffer.hpp && \
-    sed -i '1i #include <cstdio>' osdk-core/modules/src/filemgr/impl/mmap_file_buffer.cpp && \
-    mkdir build && cd build && \
-    cmake .. && \
-    make -j$(nproc) && \
-    make install
+# 2. DJI Onboard-SDK (fijado), común a los dispositivos OSDK.
+COPY devices/common/osdk/install_osdk.sh /tmp/install_osdk.sh
+RUN /tmp/install_osdk.sh ${OSDK_VERSION}
 
 # 3. Workspace: contrato + paquetes propios del M300.
 # Sin grpcio: lo pedía fkie_node_manager_daemon, que ya no se compila (discovery + sync solo dependen de
@@ -84,7 +77,7 @@ RUN echo 'SIM_LAT=37.1939871' >> /root/.bashrc && \
     echo 'alias M300-real="/root/Onboard-SDK/utility/bin/armv8/64-bit/MatriceSeries_ConfigTool --usb-port /dev/ttyACM0 --config-file /root/cfg/UserConfig_osdk.txt --power-supply on"' >> /root/.bashrc && \
     echo 'alias M300-sim-on="/root/Onboard-SDK/utility/bin/armv8/64-bit/MatriceSeries_ConfigTool --usb-port /dev/ttyACM0 --config-file /root/cfg/UserConfig_osdk.txt --power-supply on --usb-connected-flight on --simulation on --latitude $SIM_LAT --longitude $SIM_LON"' >> /root/.bashrc
 
-COPY devices/m300/entrypoint_osdk.sh /root/entrypoint_osdk.sh
+COPY devices/common/osdk/entrypoint_osdk.sh /root/entrypoint_osdk.sh
 RUN chmod +x /root/entrypoint_osdk.sh
 
 WORKDIR /root/app_ws

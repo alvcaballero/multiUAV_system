@@ -1,0 +1,54 @@
+# Parámetros de psdk_wrapper para el M300 (incluye las CREDENCIALES DJI: el real NUNCA a git).
+#   cp psdk_params.yaml.example psdk_params.yaml   # completar app_id / app_key / app_license / developer_account
+# Base: psdk_wrapper/cfg/psdk_params.yaml del fork (8b65dd5), con los módulos que usa el M300 a bordo.
+/**:
+    ros__parameters:
+      app_name: "ROS2PSDK"
+      app_id: "<YOUR_APP_ID>"
+      app_key: "<YOUR_APP_KEY>"
+      app_license: "<YOUR_APP_LICENSE>"
+      developer_account: "<YOUR_DJI_DEVELOPER_ACCOUNT>"
+      baudrate: "921600"
+
+      num_of_initialization_retries: 3
+
+      tf_frame_prefix: ""
+      imu_frame: "psdk_imu_link"
+      body_frame: "psdk_base_link"
+      map_frame: "psdk_map_enu"
+      gimbal_base_frame: "psdk_gimbal_base_link"
+      gimbal_frame: "psdk_gimbal_link"
+      camera_frame: "psdk_camera_link"
+      perception_camera_frame: "psdk_perception_camera_link"
+      publish_transforms: true
+
+      file_path: "/logs/media/"
+
+      mandatory_modules:
+        telemetry: true
+        flight_control: true
+        waypoint_flying: true
+        camera: true
+        gimbal: true
+        liveview: true
+        hms: true
+        perception: true
+
+      data_frequency: # Options are: 1, 5, 10, 50, 100, 200, 400 Hz
+        imu: 100
+        attitude: 100
+        acceleration: 50
+        velocity: 50
+        angular_velocity: 100
+        position: 50
+        altitude: 50
+        gps_fused_position: 10
+        gps_data: 5
+        rtk_data: 5
+        magnetometer: 50
+        rc_channels_data: 1
+        gimbal_data: 1
+        flight_status: 1
+        battery_level: 1
+        control_information: 1
+        esc_data_frequency: 1

@@ -1,0 +1,20 @@
+# Paquetes PROPIOS del M300 en ROS 2 Humble (perfil PSDK). Se importan junto al contrato images/msgs/humble.repos.
+# Un .repos por distro, como el contrato: noetic.repos (perfil OSDK) llega en R2. No hay jazzy: ver Dockerfile.psdk.
+# psdk_wrapper NO está aquí: sale del mismo checkout de psdk_ros2 que ya trae el contrato (mismo commit que
+# psdk_interfaces, imposible que se desincronicen).
+# Versiones fijadas por COMMIT (decisión 12).
+#
+# ¿Por qué es más corto que noetic.repos? (relevado 2026-10-31, nada falta para lo que corre a bordo)
+#   - psdk_ros2 (wrapper + interfaces) y MUAV_GCS_interfaces → vienen del contrato.
+#   - Payload-SDK → lo descarga psdk_wrapper con FetchContent al compilar.
+#   - Descubrimiento → DDS (en ROS 1 hacía falta multimaster_fkie).
+#   - Vídeo → rtsp_bridge_node de MUAV_psdk_offboard (ffmpeg) publica al mediamtx del GCS. En ROS 1: simple_vs + ros_rtsp.
+#   - Fuera a propósito: as2_platform_dji_psdk (por apt arrastra psdk de apt, decisión 14) y MUAV_psdk_gz (simulación:
+#     va en dev:humble, no en el Jetson).
+repositories:
+  # downloader_node, mission_notifier_node, rtsp_bridge_node (main). Reemplaza a camera_file_downloader y
+  # camera_rtsp_bridge de ~/work/M300/app_ros2.
+  MUAV_psdk_offboard:
+    type: git
+    url: https://github.com/arpoma16/MUAV_psdk_offboard.git
+    version: bb5c0744181e7a28f01dd9fcc99e0f40c61e1ec6

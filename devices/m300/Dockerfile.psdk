@@ -1,0 +1,97 @@
+# M300 por PSDK (Jetson Orin Nano, L4T r36.4, arm64). Cadena: Dockerfile.opencv → Dockerfile.ros2 → este.
+# Build context: la RAÍZ del repo (container_build.sh), para leer el contrato images/msgs/humble.repos.
+#
+# PSDK = ROS 2 Humble, y solo Humble: psdk_ros2 está probado solo en Humble y L4T r36.4 es Ubuntu 22.04 (Jazzy
+# solo tiene apt para 24.04). El M300 no tiene perfil Jazzy.
+# Workspace /root/psdk_ws: versiones del contrato (images/msgs/humble.repos) + propios (devices/m300/humble.repos).
+# Se compila SOLO lo que necesitan los paquetes del M300 (--packages-up-to): sus package.xml deciden qué mensajes
+# entran. px4_msgs se clona (está en el contrato) pero no se compila. Misma versión que bridge:humble en lo que
+# comparten, sin heredar una imagen x86 (decisión 6).
+# psdk_interfaces y psdk_wrapper salen del fork, NO de apt (decisión 14).
+ARG IMAGE_NAME=ros-humble:l4t-r36.4.0
+FROM ${IMAGE_NAME}
+
+ARG DEBIAN_FRONTEND=noninteractive
+# Paquetes raíz del M300: se compilan ellos y sus dependencias del workspace, nada más.
+ARG DEVICE_PACKAGES="psdk_wrapper muav_psdk_offboard"
+
+# Deps del sistema necesarias para PSDK
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    automake \
+    autoconf \
+    libtool \
+    pkg-config \
+    nasm \
+    yasm \
+    nlohmann-json3-dev \
+    libgtk-3-dev \
+    libpng-dev \
+    libjpeg-dev \
+    libtiff-dev \
+    libeigen3-dev \
+    libatlas-base-dev \
+    gfortran \
+    libusb-1.0-0-dev \
+    libaio-dev \
+    ros-humble-camera-info-manager \
+    ros-humble-image-pipeline \
+    ros-humble-geographic-info \
+    ros-humble-robot-localization \
+    ros-humble-rc-common-msgs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Opus 1.3.1 desde fuente (requerido por DJI PSDK para audio)
+RUN git clone -b v1.3.1 https://gitlab.xiph.org/xiph/opus.git && \
+    cd opus && \
+    autoreconf -f -i && \
+    ./configure --prefix=/usr/local && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig && \
+    cd .. && rm -rf opus
+
+# FFmpeg 4.3.2 desde fuente con soporte opus (mínimo necesario para PSDK)
+# --enable-libopusfile NO es un flag válido de FFmpeg; se usa solo --enable-libopus
+RUN git clone -b n4.3.2 https://github.com/FFmpeg/FFmpeg.git && \
+    cd FFmpeg && \
+    ./configure \
+        --prefix=/usr/local \
+        --enable-shared \
+        --disable-static \
+        --enable-gpl \
+        --enable-libopus \
+        --pkg-config-flags="--static" && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig && \
+    cd .. && rm -rf FFmpeg
+
+# Workspace: contrato + paquetes propios del M300.
+# psdk_wrapper descarga Payload-SDK con FetchContent durante el build (versión fijada en su CMakeLists).
+WORKDIR /root/psdk_ws
+# Mismo nombre en origen (humble.repos): se copian con el nombre de su rol para no pisarse.
+COPY images/msgs/humble.repos /root/psdk_ws/repos/contract.repos
+COPY devices/m300/humble.repos /root/psdk_ws/repos/device.repos
+RUN mkdir -p src \
+    && vcs import --input repos/contract.repos src \
+    && vcs import --input repos/device.repos src
+
+SHELL ["/bin/bash", "-c"]
+RUN source /opt/ros/humble/setup.bash \
+    && PKG_PATHS=$(colcon list --paths-only --packages-up-to ${DEVICE_PACKAGES}) \
+    && echo "[m300] se compila: $(colcon list --names-only --packages-up-to ${DEVICE_PACKAGES} | tr '\n' ' ')" \
+    && apt-get update \
+    && rosdep install -y -i --rosdistro humble --from-paths ${PKG_PATHS} \
+    && rm -rf /var/lib/apt/lists/* \
+    && colcon build --symlink-install --packages-up-to ${DEVICE_PACKAGES} \
+        --cmake-args -DCMAKE_BUILD_TYPE=Release \
+    && rm -rf log
+
+RUN echo "source /root/psdk_ws/install/setup.bash" >> /root/.bashrc
+
+COPY devices/m300/entrypoint_psdk.sh /root/entrypoint_psdk.sh
+RUN chmod +x /root/entrypoint_psdk.sh
+
+WORKDIR /root
+ENTRYPOINT ["/root/entrypoint_psdk.sh"]
+CMD ["bash"]

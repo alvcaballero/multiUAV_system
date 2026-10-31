@@ -27,6 +27,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
        fi \
     && rm -rf /var/lib/apt/lists/*
 
+# Noetic está en EOL (mayo 2025): un `rosdep update` normal BORRA sus reglas del caché y rosdep deja de resolver
+# claves como nmea_msgs (verificado). Siempre con --include-eol-distros.
+RUN if [ "$ROS_DISTRO" = noetic ]; then \
+        rosdep update --rosdistro noetic --include-eol-distros \
+        && echo "alias rosdep-update='rosdep update --include-eol-distros'  # Noetic es EOL: ver images/base/Dockerfile" >> /root/.bashrc; \
+    fi
+
 # Un único punto que carga ROS + workspace de mensajes + workspace montado (/ws).
 # El entrypoint lo usa en `docker run`; .bashrc en `docker exec`.
 COPY images/base/muav_env.sh /opt/muav/muav_env.sh

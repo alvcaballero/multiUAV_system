@@ -1,0 +1,55 @@
+# Simulación PX4 ROS 2 (SITL + Gazebo Harmonic) en dev:jazzy: lo mismo que devices/px4_ros2, con el SITL en lugar
+# del autopiloto. Origen: ~/ros2_px4_ws/src/work/tmuxinator/locscene_obstacles.yaml.
+#   tmuxinator start -p images/dev/tmuxinator_px4_ros2_sim.yml [id=1] [model=gz_x500] [sys=~/work/multiUAV_system]
+# Requiere MUAV_px4_offboard compilado en el workspace de desarrollo (ws/jazzy):
+#   vcs import ws/jazzy/src < devices/px4_ros2/jazzy.repos
+#   ./container_run.sh dev jazzy      # dentro: cd /ws && colcon build --packages-up-to muav_px4_offboard
+# Sin translation node: el SITL es el PX4 del contrato (devices/px4_ros2/px4.env).
+<%
+default_id    = '1'
+default_model = 'gz_x500'
+default_sys   = '~/work/multiUAV_system'
+uav_id  = @settings["id"]    || default_id
+model   = @settings["model"] || default_model
+sys_dir = @settings["sys"]   || default_sys
+ns  = "uav_#{uav_id}"
+run = "#{sys_dir}/container_run.sh dev jazzy"
+%>
+
+name: px4_ros2_sim
+root: ~/
+
+# px4, gz y el Agent quedan huérfanos dentro del contenedor tras un kill-session (y un gz viejo duplica el IMU de
+# PX4): se matan al salir.
+on_project_exit: docker exec muav_dev_jazzy bash -c "pkill -INT -f '^gz sim'; pkill -x px4; pkill -x MicroXRCEAgent; true"; tmux kill-session -t px4_ros2_sim
+
+windows:
+  - px4-ros2-sim:
+      layout: tiled
+      panes:
+        # El primer panel crea el contenedor; el resto entra con docker exec.
+        # Instancia 0 → MAV_SYS_ID 1 y Agent en UDP 8888. PX4_UXRCE_DDS_NS: el namespace que pide el offboard.
+        - simulation:
+            - <%= run %>
+            - cd /opt/px4/PX4-Autopilot
+            - PX4_UXRCE_DDS_NS=<%= ns %> PX4_SIM_MODEL=<%= model %> ./build/px4_sitl_default/bin/px4
+        - agent:
+            - sleep 3
+            - <%= run %>
+            - MicroXRCEAgent udp4 -p 8888
+        - offboard:
+            - sleep 3
+            - <%= run %>
+            - sleep 10
+            - ros2 launch muav_px4_offboard offboard_mission_bt.launch.py namespace:=<%= ns %> mav_sys_id:=1
+        - heartbeat:
+            - sleep 3
+            - <%= run %>
+            - sleep 10
+            - ros2 launch muav_px4_offboard gcs_heartbeat.launch.py namespace:=<%= ns %>
+        # Bridge del GCS dentro de dev (decisión 13): rosbridge, el descubrimiento lo hace DDS.
+        - rosbridge:
+            - sleep 3
+            - <%= run %>
+            - sleep 5
+            - /opt/muav/bridge/start.sh

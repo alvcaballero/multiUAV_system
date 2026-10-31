@@ -199,6 +199,15 @@ Estado (2026-10-31): pasos 1-4 escritos, **sin construir ni probar**. Falta el 5
   sobre los `.repos` reales (sin compilar): noetic selecciona los 3 paquetes catkin y humble deja fuera
   `psdk_wrapper`. `vcs import` alcanza el commit de la rama huérfana `ros1`. **Sin compilar**: falta
   `images/build.sh noetic base msgs`, que además prueba el `add_dependencies(... INTERFACE ...)` de `dji_osdk_ros`.
+- **R2: `bridge:noetic` escrito (2026-10-31)**. `images/bridge/noetic.launch` reemplaza a `connect_uas.launch`
+  (decisión 10): hace lo mismo (master_discovery sin multicast + master_sync + rosbridge) con las tres listas de
+  hosts sacadas de `MUAV_HOSTS`. El arranque lo decide `images/bridge/start.sh` según la distro. Si `MUAV_HOSTS` está
+  vacío, avisa y levanta solo rosbridge; si tiene caracteres que no son de un host, falla. multimaster sale de apt
+  1.3.2: es lo que usa `muavgcs:noetic` con la flota, y `143f8e4` de los drones también es 1.3.2. Sin `ROS_MASTER_URI`
+  ni `ROS_HOSTNAME`, igual que la imagen actual (`container_run.sh` los pasa si están en el host). Verificado sin
+  compilar: `roslaunch --dump-params` da listas YAML correctas y la validación de `start.sh` se probó con varios casos.
+  **Para el GCS (fuera de este repo)**: `compose.ros1.yaml` sobreescribe el `command` con
+  `roslaunch aerialcore_gui connect_uas.launch`. Con `bridge:noetic` hay que quitarlo y pasar `MUAV_HOSTS`.
 - **Credenciales DJI del M300 (confirmado: SON credenciales)**: `~/work/M300/app_ros2/psdk_ros2/psdk_wrapper/cfg/`
   tiene cambios sin commitear (`link_config.json`, `psdk_params.yaml`, `dji_sdk_config.json`). NUNCA a git ni al
   fork: en `devices/m300/` solo va un `.example` con los valores vacíos, y el real se añade al `.gitignore` antes

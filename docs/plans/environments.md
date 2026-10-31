@@ -191,7 +191,14 @@ Estado (2026-10-31): pasos 1-4 escritos, **sin construir ni probar**. Falta el 5
   Se saca `aerialcore_common` cuando ningún dron ni interfaz del GCS lo use.
   **Hecho (2026-10-31)**: `images/msgs/noetic.repos` escrito. `MUAV_GCS_interfaces` `ros1` @ `4c09d61` (verificado:
   `aerialcore_common` byte a byte igual a `multiUAV_system` main @ `aeb0679`, y `multiuav_interfaces` igual al de esta
-  rama) + `Onboard-SDK-ROS` @ `d7ee4b4`. Falta adaptar `images/msgs/Dockerfile` a catkin en R2 (regex + flag OSDK).
+  rama) + `Onboard-SDK-ROS` @ `d7ee4b4`.
+- **R2: `images/msgs/Dockerfile` sirve para catkin (2026-10-31)**. Un solo Dockerfile para las tres distros: colcon
+  compila los paquetes catkin (`colcon-ros` pasa `-DCATKIN_INSTALL_INTO_PREFIX_ROOT=0` y agrega el hook de
+  `ROS_PACKAGE_PATH`), y `images/base` instala colcon también en noetic. `MSGS_REGEX` nombra `aerialcore_common` y
+  `dji_osdk_ros`. `MSGS_CMAKE_ARGS` lleva `-DONBOARD_SDK_ROS_ONLY_INTERFACES=ON`. Verificado con `colcon list`
+  sobre los `.repos` reales (sin compilar): noetic selecciona los 3 paquetes catkin y humble deja fuera
+  `psdk_wrapper`. `vcs import` alcanza el commit de la rama huérfana `ros1`. **Sin compilar**: falta
+  `images/build.sh noetic base msgs`, que además prueba el `add_dependencies(... INTERFACE ...)` de `dji_osdk_ros`.
 - **Credenciales DJI del M300 (confirmado: SON credenciales)**: `~/work/M300/app_ros2/psdk_ros2/psdk_wrapper/cfg/`
   tiene cambios sin commitear (`link_config.json`, `psdk_params.yaml`, `dji_sdk_config.json`). NUNCA a git ni al
   fork: en `devices/m300/` solo va un `.example` con los valores vacíos, y el real se añade al `.gitignore` antes

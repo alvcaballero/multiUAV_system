@@ -1,415 +1,182 @@
 # Plan: entornos ROS del sistema (GCS, dispositivos, desarrollo)
 
-Estado: **en curso**. Alcance: SOLO este repo. Los demás repos (onboard_dji, onboard_px4, px4_ros2_docker, el GCS,
-la carpeta `~/work/M300`) no se modifican: de ellos se copia lo útil y se referencian por `.repos`.
+Estado (2026-10-31): **R1 y R2 escritos y pusheados, NADA construido ni probado. Limpieza de R2 hecha. Sigue: R3.**
+Rama: `refactor/rename-packages` (HEAD `02560bb`, 33 commits desde `d0dd48a`).
 
-## Problema
+Alcance: SOLO este repo (`/home/grvc/work/multiUAV_system`). Los demás repos se LEEN y se referencian por `.repos`,
+no se editan ni se commitean. Si hace falta un cambio en otro repo, se anota en "Fuera de este repo".
 
-Cada contenedor arrancaba de cero y vivía en un sitio distinto, así que nada se podía referenciar:
+## Para retomar (leer primero)
 
-| Pieza | Dónde estaba | Problema |
-|---|---|---|
-| Entorno ROS 1 de desarrollo | `docker/` + `~/work/ros_docker_volume` | Volumen sin versionar, ruta hardcodeada, clona por RAMA (`GimbalPitch`) |
-| Entorno M300 | `multiuav_bringup/devices/M300/docker` + `~/work/M300` (no es repo git) | Copias con remote `ssh://...10.20.0.2`, no GitHub |
-| Entorno PX4 ROS 2 | `px4_ros2_docker` (otro repo) | README dice Humble/PX4 1.15; el GCS espera Jazzy/`px4_msgs` main |
-| Bridge del GCS | Imagen `muavgcs:ros1` construida a mano | Nadie sabe de qué Dockerfile sale; `Dockerfile.gcs` hereda una imagen de desarrollo completa |
-| Mensajes | Repetidos en cada workspace | Un mensaje nuevo hay que añadirlo en cada lado |
+1. `git log --oneline d0dd48a..HEAD`: qué se hizo, un commit por paso.
+2. Este plan: decisiones (no se re-discuten), estado y el arranque de R3.
+3. `README.md` (mapa) y `devices/<x>/README.md` (cada dispositivo).
+4. Reglas que se aplicaron en todo R1/R2 y siguen en R3:
+   - Versiones fijadas por **commit** en los `.repos` (tag si existe); verificar con `git ls-remote` que el commit
+     esté en GitHub, no solo en un checkout local (los locales suelen estar atrasados o con commits sin pushear).
+   - Un dispositivo compila SOLO lo que piden sus paquetes (`--packages-up-to` / `--only-pkg-with-deps`).
+   - Credenciales: solo `.example` en git; lo real en `devices/<x>/cfg/` (gitignored). Nunca imprimirlas: comparar
+     por hash/largo.
+   - Verificar sin construir cuando el usuario no lo pide: `colcon list` sobre los `.repos` reales en un contenedor
+     descartable, `rosdep check`, `docker build --check` (con bases públicas de reemplazo), `bash -n`, render de
+     tmuxinator con ruby/ERB, dobles de prueba para scripts.
+   - Commits en grupos lógicos (conventional commits, sin atribución a IA) y push al terminar cada paso.
 
 ## Decisiones
 
-1. **Este repo es el sistema**: entornos, dispositivos y el contrato de mensajes. No contiene paquetes ROS propios:
-   el código entra por `.repos`.
-2. **Una carpeta por dispositivo con TODO lo suyo** (Dockerfile, `.repos`, tmuxinator, qué instalar a bordo).
-   Lo compartido va en `images/`.
-3. **Carpetas por distro, NO ramas por distro.** El GCS necesita bridges de varias distros a la vez, lo común
-   (`devices/common`, scripts) no se triplica y hay dispositivos en dos distros (PX4 Humble y Jazzy).
-4. **Un bridge por distro** (`noetic`, `humble`, `jazzy`). Probado: la comunicación Humble↔Jazzy no va bien.
-5. **El contrato = `images/msgs/<distro>.repos`.** Todos los paquetes de mensajes del sistema. Bridge, dev y
-   dispositivos los heredan; un mensaje nuevo se declara UNA vez.
-6. **El contrato es el ARCHIVO `.repos`, no la imagen.** Las imágenes x86 (bridge, dev) heredan de `msgs:<distro>`.
-   Un dispositivo con hardware propio (M300: Jetson Orin Nano, L4T r36.4, arm64, OpenCV CUDA) tiene su
-   contenedor ESPECÍFICO con su propia base, y dentro hace `vcs import < images/msgs/<distro>.repos`: mismos
-   mensajes y misma versión, sin heredar una imagen x86. No se fuerza una cadena de `FROM` común a todo.
-7. **Mensajes OSDK: el mismo `Onboard-SDK-ROS`, compilado solo-interfaces en el bridge** (revisada 2026-10-31; antes
-   decía "repo propio de solo-mensajes", ver Pendientes). El paquete se sigue llamando **`dji_osdk_ros`**: rosbridge
-   identifica el tipo por `paquete/Mensaje` y ROS 1 compara el MD5 de la definición. Con otro nombre, deja de
-   interpretarse sin error.
-8. **`multiuav_interfaces` sale a la rama `ros1` de `arpoma16/MUAV_GCS_interfaces`** (revisada 2026-10-31; antes decía
-   "repo propio") y entra por `images/msgs/noetic.repos`. La rama es HUÉRFANA (catkin; `main` es ROS 2/ament): nunca
-   se mergean. Lleva también `aerialcore_common`, de contenido idéntico, mientras la flota migra. Una rama por
-   versión de ROS en un repo de mensajes no contradice la decisión 3, que es para ESTE repo.
-9. **`multiuav_bringup` se vacía hacia `devices/` y se borra.** Su contenido sí se usa; lo que sobra es que sea
-   un paquete catkin.
-10. **`connect_uas.launch` deja de ser un launch por proyecto**: es configuración del bridge ROS 1 (multimaster +
-    rosbridge). Va en `images/bridge/` con los hosts como variable (`MUAV_HOSTS`), no hardcodeados. Las dos
-    copias que existen solo difieren en la lista de hosts.
-11. **El GCS sigue como submódulo, con significado de "última versión verificada"** con este sistema. El
-    desarrollo diario del GCS se hace en su propio checkout; el puntero aquí se actualiza a propósito tras
-    probar el conjunto. El GCS ha mantenido compatibilidad con todos los dispositivos actuales.
-12. **Las versiones se fijan con tag o commit en los `.repos`, no con rama.** "Congelar" ROS 1 es eso.
-13. **Desarrollo: un contenedor por distro con el bridge dentro.** Los mensajes salen del mismo `msgs`, así que
-    la diferencia con producción es solo el `FROM` final.
-14. **`psdk_interfaces` sale del fork `arpoma16/psdk_ros2` (`dev/integration`)**, también en el M300. Hoy el M300
-    NO lo usa: `Dockerfile.psdk` instala `ros-humble-psdk-interfaces`/`psdk-wrapper` por apt y
-    `~/work/M300/app_ros2/psdk_ros2` es el upstream `umdlife` en `feat/waypoint-v2`. R1 lo pasa al fork.
-15. **PX4: contrato en `px4_msgs` `v1.15.4`** (rama `release/1.15`, la que ya usa `px4_ros2_docker`). Otra versión
-    de PX4 = otro contenedor de dispositivo con su versión, no otro contrato. La compatibilidad entre versiones de
-    mensajes la da el **message translation node** de PX4 (`PX4-Autopilot/msg/translation_node`, ver
-    `multiuav_gcs/infra/external.md` › Versiones de mensajes de PX4). Resuelto: no es un pendiente de este plan.
+1. **Este repo es el sistema**: entornos, dispositivos y el contrato de mensajes. Sin paquetes ROS propios: el
+   código entra por `.repos`.
+2. **Una carpeta por dispositivo con TODO lo suyo** (Dockerfile, `.repos`, tmuxinator, README, `cfg/*.example`,
+   `host/`). Lo compartido entre roles va en `images/`; lo compartido entre drones, en `devices/common/`.
+3. **Carpetas por distro, NO ramas por distro** (en ESTE repo). El GCS necesita bridges de varias distros a la vez.
+4. **Un bridge por distro** (`noetic`, `humble`, `jazzy`). Probado: Humble↔Jazzy no se entienden bien.
+5. **El contrato = `images/msgs/<distro>.repos`**: lo que el BRIDGE tiene que deserializar (la unión). Un mensaje
+   nuevo se declara UNA vez.
+6. **El contrato es el ARCHIVO, no la imagen.** `bridge` y `dev` heredan `muav/msgs:<distro>`. Los dispositivos
+   importan el `.repos` con vcs dentro de su propia imagen y compilan **solo lo que declaran sus `package.xml`**, en la
+   versión del contrato (el M300 PSDK no compila `px4_msgs`).
+7. **`dji_osdk_ros`: el mismo `Onboard-SDK-ROS` en todos lados.** El bridge lo compila con
+   `-DONBOARD_SDK_ROS_ONLY_INTERFACES=ON` (sin nodos ni Onboard-SDK); los drones OSDK, completo. El nombre de paquete
+   no cambia (rosbridge carga por `paquete/Mensaje`, ROS 1 compara MD5).
+8. **Mensajes del GCS en ROS 1: rama HUÉRFANA `ros1` de `arpoma16/MUAV_GCS_interfaces`** (catkin; `main` es ROS 2). No
+   se mergean nunca. Lleva `aerialcore_common` (la flota y las interfaces del GCS lo piden) y `multiuav_interfaces`
+   (nombre nuevo), idénticos byte a byte, mientras la flota migra.
+9. **`multiuav_bringup` se vació hacia `devices/` y se borró** (hecho).
+10. **`connect_uas.launch` → `images/bridge/`**, hosts por `MUAV_HOSTS`. `images/bridge/multimaster.launch` es el
+    MISMO archivo para el GCS y los drones: cada lado lista al OTRO.
+11. **El GCS sigue como submódulo (`multiuav_gui`) = "última versión verificada"**; su desarrollo va en su checkout.
+12. **Versiones con tag o commit, nunca rama.**
+13. **Desarrollo: `dev:<distro>` con el bridge dentro** (`/opt/muav/bridge/start.sh`) y los mismos mensajes.
+14. **`psdk_interfaces`/`psdk_wrapper` del fork `arpoma16/psdk_ros2`**, nada por apt.
+15. **PX4: contrato Humble en `px4_msgs` `v1.15.4`** (confirmado por el usuario). Otra versión de PX4 a bordo → el
+    translation node de PX4, no otro contrato. OJO: el GCS espera `main` (ver "Fuera de este repo").
+16. **Un `.repos` por distro también en los dispositivos** (`devices/<x>/<distro>.repos`). El M300 tiene
+    `humble.repos` (PSDK) y `noetic.repos` (OSDK); sin Jazzy (L4T r36.4 = Ubuntu 22.04, Jazzy solo tiene apt en 24.04).
+17. **colcon compila también los paquetes catkin**: un solo `images/msgs/Dockerfile` para las tres distros.
+18. **M600 fuera** (no se usa). **Melodic fuera** (todos los M210 en Noetic).
 
-## Estructura objetivo
+## Estructura actual
 
 ```
-multiUAV_system/
-  images/                     lo COMPARTIDO
-    base/                     Dockerfile por distro (ARG BASE_IMAGE): noetic | humble | jazzy
-    msgs/                     Dockerfile + noetic.repos humble.repos jazzy.repos   ← el contrato
-    bridge/                   rosbridge (+ multimaster en noetic, hosts por MUAV_HOSTS)   → GCS
-    dev/                      compiladores, sim, bridge dentro
-  devices/
-    common/                   init a bordo: rc.local, synchdate, multimaster, VPN
-    m300/  m210/  vtol/ (= px4_mavros)  px4_ros2/        (M600 fuera: no se usa)
-      Dockerfile  <x>.repos  tmuxinator.yml  README.md (qué instalar a bordo y cómo)
-  container_run.sh            container_run.sh <imagen|dispositivo>
-  ws/                         gitignored: noetic/src  humble/src  jazzy/src
-  multiuav_gui/               submódulo (decisión 11)
+images/                  base/ msgs/ bridge/ dev/ (+ dev/mock/, dev/tmuxinator_px4_sim.yml), build.sh
+  msgs/noetic.repos      MUAV_GCS_interfaces ros1 @4c09d61 + Onboard-SDK-ROS @d7ee4b4
+  msgs/humble.repos      MUAV_GCS_interfaces @59ebddf + psdk_ros2 @8b65dd5 + px4_msgs v1.15.4
+devices/
+  common/                osdk/{install_osdk.sh,entrypoint_osdk.sh}, multimaster_watch.sh, boot/ (hora desde el GCS)
+  m300/                  Jetson L4T r36.4: opencv → ros2 → psdk (Humble) | opencv → ros1 (fuentes) → osdk (Noetic)
+  m210/                  Raspberry Pi, Noetic sobre muav/base:noetic
+  vtol/                  Raspberry Pi, PX4 por mavros, Noetic sobre muav/base:noetic
+container_run.sh         dev|bridge <distro> | <dispositivo> ...
+ws/<distro>/             gitignored, montado en /ws de dev
+multiuav_gui/            submódulo GCS (7d4b1df)
 ```
 
-Encadenado (producción):
+Tags de imagen: `muav/<rol>:<distro>` (x86 y multi-arch), `muav/m210:noetic`, `muav/vtol:noetic`; Jetson:
+`opencv-cuda`, `ros-humble`, `ros-humble-psdk`, `ros-noetic`, `ros-noetic-osdk` `:l4t-r36.4.0`.
 
-```
-base:<distro> ─► msgs:<distro> ─┬─► bridge:<distro>   (GCS)
-                                ├─► dev:<distro>      (desarrollo)
-                                └─► devices/<x>       (+ SDK y paquetes propios del dispositivo)
-```
+## Estado por rebanada
 
-Desarrollo: `vcs import ws/<distro>/src < images/msgs/<distro>.repos` (+ el `.repos` del dispositivo). El
-contenedor dev monta `ws/<distro>`; se edita en el host y se compila dentro. `ws/` reemplaza a
-`~/work/ros_docker_volume`.
+### R1 — Humble + M300 PSDK: escrito, sin construir
+- `images/*` Humble, `devices/m300` perfil PSDK (`humble.repos`: `MUAV_psdk_offboard` @`bb5c074`).
+- `psdk_wrapper` lee las credenciales de sus parámetros ROS: `cfg/psdk_params.yaml` + `cfg/link_config.json`.
+- Falta: **paso 5**, que el GCS reciba la telemetría PSDK por `bridge:humble`.
 
-## De dónde sale cada cosa
+### R2 — Noetic + M300 OSDK / M210 / VTOL: escrito, sin construir; limpieza hecha
+- `images/*` Noetic (bridge con multimaster apt 1.3.2; dev con Onboard-SDK, mavros y PX4 v1.14.4 SITL + Gazebo 11
+  compilado en la imagen; drones falsos `images/dev/mock/` para ver el GCS sin hardware).
+- `devices/m300` OSDK, `devices/m210`, `devices/vtol`, `devices/common`. Detalles en cada README.
+- Limpieza: borrados `docker/`, `multiuav_bringup/`, `multiuav_interfaces/`, submódulos `onboard_*` (commit
+  `906bfb1`; lo viejo sigue en `906bfb1^` si hace falta). Credenciales locales movidas sin abrir a
+  `devices/m300/cfg/` (`UserConfig_osdk.txt`) y `devices/m300/cfg/legacy/` (las 2 de PSDK en formato viejo: pasarlas a
+  mano a `psdk_params.yaml` y `link_config.json`).
 
-| Hoy | Destino |
-|---|---|
-| `docker/Dockerfile.gcs` | `images/base/noetic` + `images/dev/noetic` (separar deps comunes de las de desarrollo) |
-| `docker/Dockerfile.sim`, `initDev.sim.sh` | `images/dev/noetic` (perfil sim: PX4 v1.14.4 + Gazebo 11) |
-| `docker/initDev*.sh` | `devices/*/*.repos` + `images/msgs/noetic.repos` (`vcs import`, versión fijada) |
-| `docker/Dockerfile`, `Production.Dockerfile`, `createContainer.sh` | Se borran (legado; `Production.Dockerfile` hereda `muavgcs:noetic`, imagen sin origen) |
-| `docker/container_run.sh` | `container_run.sh` (raíz), sin ruta hardcodeada: monta `ws/<distro>` |
-| `multiuav_bringup/devices/M300/docker/*` | `devices/m300/` (osdk y psdk como perfiles) |
-| `multiuav_bringup/devices/{M210,M600,vtol}` | `devices/<x>/` |
-| `multiuav_bringup/devices/init/` | `devices/common/` |
-| `multiuav_bringup/launch/connect_uas.launch` | `images/bridge/` (decisión 10) |
-| `multiuav_bringup/launch/simulate_*.launch`, `scripts/` | `images/dev/` si se usan; si no, se borran |
-| `multiuav_interfaces/` | Repo propio → `images/msgs/noetic.repos` |
-| Submódulos `onboard_dji`, `onboard_px4` | Entradas en `devices/m210/m210.repos`, `devices/px4_mavros/px4_mavros.repos` |
-| `~/work/M300/app_ros1`, `app_ros2` | Revisar y copiar lo útil a `devices/m300/` (tmuxinator `M300-PSDK-ROS2.yml`, `camera_*`) |
-| `px4_ros2_docker` | Base de `devices/px4_ros2/` + `images/dev/{humble,jazzy}` (copiar, no tocar el repo original) |
+### Verificación pendiente de R1+R2 (la hace el usuario; si algo falla, se arregla en la sesión)
+1. `images/build.sh humble` y `images/build.sh noetic` (x86). Lo primero que puede fallar: `dji_osdk_ros` con
+   `ONLY_INTERFACES` (`modules/CMakeLists.txt` hace `add_dependencies(${PROJECT_NAME} INTERFACE ...)`).
+2. `./container_run.sh dev noetic` → `roscore & /opt/muav/bridge/start.sh & /opt/muav/mock/mock_fleet.sh`: el GCS
+   debe ver 4 drones.
+3. Jetson: `devices/m300/container_build.sh` (horas: OpenCV CUDA) y los dos tmuxinator.
+4. Pi: `images/build.sh noetic base`, `devices/m210/container_build.sh`, `devices/vtol/container_build.sh`.
+5. Telemetría real en el GCS por `bridge:humble` (PSDK) y `bridge:noetic` (OSDK, PX4 mavros).
 
-Credenciales DJI (`dji_psdk_config.json`, `UserConfig_*.txt`): siguen fuera de git; solo `.example` versionado.
+## R3 — Jazzy + PX4 ROS 2 (siguiente)
 
-## Migración por rebanadas
+Objetivo: `images/{base,msgs,bridge,dev}` para Jazzy y `devices/px4_ros2` con `ARG ROS_DISTRO` (humble | jazzy).
+Los Dockerfiles de `images/` ya son genéricos por distro: R3 es sobre todo el contrato, el dispositivo y el dev.
 
-Cada rebanada es una rama de trabajo que se mergea y termina funcionando de punta a punta. Lo viejo sigue vivo
-hasta que su rebanada termina.
+Datos ya relevados (no repetir):
+- **`MUAV_GCS_interfaces`**: el MISMO commit que Humble (`59ebddf7a8ae7bc48241018f9880d75d57f4d307`). El GCS tiene
+  una sola definición. Checkout de desarrollo: `~/ros2_px4_ws/src/work/MUAV_GCS_interfaces` (Jazzy).
+- **`px4_msgs` en Jazzy: DECIDIR al empezar.** La decisión 15 fija `v1.15.4` para Humble; el GCS
+  (`multiuav_gcs/infra/repos/ros2_px4.repos` y `server/config/devices/interfaces/px4_ros2.yaml`) usa `main` y topics
+  versionados (`vehicle_status_v4`, `battery_status_v1`) que NO existen en 1.15. Preguntar al usuario si Jazzy sigue
+  la decisión 15 o va a `main`.
+- **Micro-XRCE-DDS Agent: versiones distintas.** `px4_ros2_docker/Docker/ros2_microdds.Dockerfile` compila `v3.0.1`;
+  el `.repos` del GCS dice `v2.4.3`. Elegir una al empezar.
+- Lo que el GCS espera a bordo en Jazzy (`multiuav_gcs/infra/repos/ros2_px4.repos`, por rama: hay que FIJAR):
+  `px4_msgs`, `Micro-XRCE-DDS-Agent`, `MUAV_GCS_interfaces`, `arpoma16/mqtt_client` (`muav/service-bridge`, protocolo
+  mqtt), `arpoma16/MUAV_px4_offboard` (`main`).
+- **Translation node** de PX4 (`PX4-Autopilot/msg/translation_node`): uno por dron, con su namespace; compilar desde
+  un PX4 igual o más nuevo que el más nuevo de los dos lados (`multiuav_gcs/infra/external.md` › Versiones de
+  mensajes de PX4). Los servicios no se traducen en Humble.
+- Fuente a copiar (no tocar): `~/work/px4_ros2_docker` (`Docker/{ros2,ros2_microdds,px4_gz,ros2_ws,ros_gz}.Dockerfile`,
+  `.repos`, `tmuxinator/`). Clon Jazzy de trabajo: `~/ros2_px4_ws/src/work` (`compose2`).
+- `images/dev/Dockerfile` ya maneja ROS 2 (`ros-dev-tools`). Para PX4 en Jazzy: Gazebo Harmonic (`ros-gz`), no
+  Gazebo Classic: ver `px4_gz.Dockerfile` y `ros_gz.Dockerfile`.
+- `images/dev/mock/` es solo ROS 1. Un mock ROS 2 (PSDK / PX4 ROS 2) sería trabajo nuevo, si se quiere.
 
-### R1 — Humble + M300 (PSDK)
-1. `images/base/humble` (x86, `ros:humble`).
-2. `images/msgs/humble.repos` + Dockerfile.
-3. `images/bridge/humble` y `images/dev/humble`.
-4. `devices/m300/`: contenedor específico Jetson (cadena opencv → ros2 → psdk de
-   `multiuav_bringup/devices/M300/docker`) + `vcs import` de `images/msgs/humble.repos` + lo útil de
-   `~/work/M300/app_ros2`. `psdk_interfaces`/`psdk_wrapper` desde el fork, no por apt (decisión 14).
-5. Verificar: el GCS recibe telemetría PSDK por `bridge:humble`.
+## Fuera de este repo (pendientes del usuario o de otros repos)
 
-Estado (2026-10-31): pasos 1-4 escritos, **sin construir ni probar**. Falta el 5. Implementación:
-- Un Dockerfile por ROL con `ARG ROS_DISTRO` (`images/{base,msgs,bridge,dev}/Dockerfile`), tags `muav/<rol>:<distro>`,
-  build context = raíz del repo. `images/build.sh <distro> [roles]` construye la cadena.
-- `msgs` compila solo los paquetes `*_msgs|*_interfaces` del `.repos` en `/opt/muav/msgs` (psdk_ros2 trae también
-  `psdk_wrapper`, que compila el dispositivo).
-- `container_run.sh dev|bridge <distro>` en la raíz; `container_run.sh <dispositivo>` delega en `devices/<x>/`.
-- **Un `.repos` por distro también en los dispositivos** (`devices/<x>/<distro>.repos`). El M300 tiene `humble.repos`
-  (PSDK) y tendrá `noetic.repos` (OSDK, R2). Sin Jazzy: `psdk_ros2` solo está probado en Humble y L4T r36.4 es
-  Ubuntu 22.04 (Jazzy solo tiene apt para 24.04).
-- `devices/m300`: el workspace de la imagen toma las versiones de `images/msgs/humble.repos` + `devices/m300/humble.repos`,
-  pero compila solo `--packages-up-to psdk_wrapper muav_psdk_offboard`. **Precisión a la decisión 6**: el contrato
-  es lo que el BRIDGE deserializa (la unión); un dispositivo compila solo los mensajes que sus paquetes declaran en
-  `package.xml`, en la versión del contrato. El M300 no compila `px4_msgs`.
-- Hallazgos que cambiaron lo que se copió del M300:
-  - `psdk_wrapper` lee las credenciales de sus PARÁMETROS ROS (`psdk_params.yaml`), no de env: `UserConfig_psdk.txt`
-    y el export de `PSDK_APP_*` del entrypoint viejo no hacían nada. Ahora: `cfg/psdk_params.yaml` +
-    `cfg/link_config.json` (gitignored, `.example` versionado) montados en `/root/cfg`.
-  - Fuera `ros-humble-as2-platform-dji-psdk` (apt): arrastra `psdk-wrapper`/`psdk-interfaces` de apt, que es justo
-    lo que la decisión 14 elimina. El tmuxinator no lanzaba aerostack2.
-  - Fuera el clon de Payload-SDK 3.9.2 en `/opt/payload-sdk` (era para el wrapper de apt): el wrapper del fork lo
-    baja con FetchContent (3.8.1, fijado en su `CMakeLists.txt`).
-  - `camera_file_downloader`/`camera_rtsp_bridge` de `app_ros2` NO se copian: superados por `MUAV_psdk_offboard`.
-  - Commits fijados al tip del REMOTE (`psdk_ros2` `8b65dd5`, `MUAV_psdk_offboard` `bb5c074`): los checkouts
-    locales de `px4_ros2_docker` estaban 3 y 4 commits atrás.
+**Seguridad (urgente)** — borrar los archivos no saca los secretos de la historia de git:
+1. Credenciales DJI en `miggilcas/Onboard-SDK-ROS` (público), `launch/dji_vehicle_node.launch` (incluido `d7ee4b4`):
+   rotar en el portal DJI y avisar al dueño. El `entrypoint_osdk.sh` las pisa al arrancar.
+2. Credenciales DJI de OTRA app en `alvcaballero/onboard_dji` (público), rama `M210`, `launch/atlas-noetic.launch`:
+   rotar.
+3. Contraseñas WiFi (3) en la historia de ESTE repo (público): `multiuav_bringup/devices/M300/Netplan.yaml` y
+   `M210/50-cloud-init.yaml`: cambiarlas en los routers.
 
-### R2 — Noetic + M210 / M300 OSDK / PX4 mavros
-1. Requiere el repo de mensajes `dji_osdk_ros` y el de `multiuav_interfaces`.
-2. `images/{base,msgs,bridge,dev}/noetic`; `bridge` absorbe `connect_uas.launch`.
-3. `devices/{m210,px4_mavros,m600,vtol}` y el perfil osdk de `devices/m300`.
-4. Fijar commits en los `.repos` (adiós `GimbalPitch` como rama).
-5. Borrar `docker/`, `multiuav_bringup/`, `multiuav_interfaces/` y los submódulos `onboard_*`.
+GCS (`multiuav_gcs`):
+- `infra/compose/compose.ros1.yaml` sobreescribe el `command` con `roslaunch aerialcore_gui connect_uas.launch`:
+  quitarlo y pasar `MUAV_HOSTS` para usar `muav/bridge:noetic`. Igual para `compose.ros2.yaml` → `muav/bridge:<distro>`.
+- `px4_ros2.yaml` espera `px4_msgs` `main`; el contrato Humble es `v1.15.4` (decisión 15): alinear uno de los dos.
+- `infra/repos/` y la parte de mensajes de `infra/external.md` → citar este repo. `infra/local.env` con una sola
+  `MUAV_SYSTEM_DIR`.
+- Actualizar el puntero del submódulo `multiuav_gui` (hoy `7d4b1df`) tras probar el conjunto.
 
-### R3 — Jazzy + PX4 ROS 2
-1. `images/{base,msgs,bridge,dev}/jazzy`; `devices/px4_ros2` con `ARG ROS_DISTRO` (humble | jazzy).
-2. Copiar desde `px4_ros2_docker` lo necesario.
+Otros:
+- `wirispro_manager` (`miggilcas`, privado o borrado): mientras no sea accesible, el VTOL usa `onboard_px4` `main`, sin
+  el servicio de la WIRIS Pro (`feature/wirispro` depende de él).
+- `onboard_px4` `atlas.launch`: `fcu_url` y `gcs_url` (`udp://@192.168.0.123:14550`) escritos, sin argumentos.
+- `onboard_dji` rama `M210`: 60 commits sin mergear en `main`.
+- Registry: por ahora build local; GHCR cuando haya más usuarios.
 
-### Después (fuera de este repo, cuando se decida)
-- GCS: `infra/compose/compose.ros*.yaml` apunta a `bridge:<distro>`; `infra/repos/` y la parte de mensajes de
-  `infra/external.md` pasan a citar este repo; `infra/local.env` con una sola `MUAV_SYSTEM_DIR`.
-- Actualizar el puntero del submódulo `multiuav_gui` (hoy `7d4b1df`, `v1.4-184`).
+## Trampas conocidas (verificadas)
 
-## Pendientes
+- **rosdep + Noetic EOL**: `rosdep update` sin `--include-eol-distros` BORRA Noetic del caché y deja de resolver
+  claves (`nmea_msgs`…). `images/base` lo hace bien y deja el alias `rosdep-update`.
+- `ros:noetic-ros-base` no trae `git`: en pruebas con `vcs import`, instalarlo (la imagen `base` sí lo trae).
+- `px4_bringup` (grvc-ual) declara `gazebo_ros` como run_depend: en drones, `rosdep --skip-keys gazebo_ros`.
+- ROS 1: dos nodos con el mismo nombre se echan entre sí (`__name:=` único).
+- `ros_rtsp` lee su config de `$(find ros_rtsp)/config/stream_setup.yaml` sin argumento: se monta encima.
+- `simple_vs` `main` arma el namespace como `uav_<id>`: pasar el NÚMERO (`uav_id:=2`).
+- Bash: un `trap` en INT/TERM que no hace `exit` deja vivo el bucle del script.
 
-- **Noetic en Jetson**: L4T r36.4 es Ubuntu 22.04 y Noetic no tiene apt para Jammy. **Corregido (2026-10-31)**: la
-  imagen que se usa (`ros-noetic:l4t-r36.4.0`) NO sale de `jetson-containers` (eso es solo una nota en
-  `~/work/M300/app_ros1/Readme.md`) sino de `Dockerfile.ros1`, que compila ROS desde fuentes (~40 clones, varios por
-  RAMA `*-devel`/`master`: fijar en R2). Es el perfil osdk de `devices/m300`, no `images/base/noetic`.
-- **M300 OSDK relevado (2026-10-31)**: `devices/m300/noetic.repos` escrito (sin Dockerfile todavía). El workspace a
-  bordo = imagen (`Onboard-SDK-ROS`, `multimaster_fkie`) + `~/work/M300/app_ros1` montado (`multiUAV_system` main,
-  `ros_rtsp`, `simple_vs`). Sin trabajo perdido: `run_M300-rtsp.launch` sin trackear ya está en `onboard_dji`
-  `origin/M300` (`5e0e501`); lo de `simple_vs` es solo modo de archivos + un default; la config de `ros_rtsp` se copió
-  a `devices/m300/config/`. `app_ros1/docker` es una versión ANTERIOR de `multiuav_bringup/devices/M300/docker`
-  (solo cambia el nombre del entrypoint y OpenCV `4.x` sin fijar); `try2/` y `docker2/` son restos.
-- **`aerialcore_common` vs `multiuav_interfaces` (afecta a la decisión 8)**: toda la flota ROS 1 corre
-  `aerialcore_common` y las interfaces del GCS (`dji_M300.yaml`, `dji_M210_noetic.yaml`, `px4_mavros.yaml`,
-  `griffin.yaml`) piden `aerialcore_common/ConfigMission`. El código del GCS ya acepta los dos nombres
-  (`msgEncode.js:76`), pero rosbridge carga la clase POR NOMBRE de paquete. Con solo `multiuav_interfaces` en
-  `bridge:noetic`, los drones actuales dejan de funcionar. Decidir antes de escribir `images/msgs/noetic.repos`.
-- **Decisión 7 revisada (2026-10-31): sin repo aparte de solo-mensajes.** `miggilcas/Onboard-SDK-ROS` ya trae
-  `-DONBOARD_SDK_ROS_ONLY_INTERFACES=ON` (desde `2fceba8`): sin nodos, `modules` como librería INTERFACE, sin buscar
-  el OSDK, LibUSB/FFMPEG opcionales. Mismo modelo que `psdk_ros2`: el contrato `images/msgs/noetic.repos` apunta a
-  Onboard-SDK-ROS (`d7ee4b4`); `bridge:noetic` lo compila con la opción, y los dispositivos OSDK lo compilan completo
-  con el Onboard-SDK instalado (`118e2825`). Un repo, un commit, un nombre: nada que se pueda desincronizar.
-  **Sin verificar compilando**: `modules/CMakeLists.txt` hace `add_dependencies(${PROJECT_NAME} INTERFACE ...)`,
-  que según la versión de CMake puede fallar. Es lo primero que hay que probar en R2.
-- **Mensajes ROS 1 en transición**: el contrato noetic lleva `aerialcore_common` (flota actual) Y `multiuav_interfaces`.
-  Se saca `aerialcore_common` cuando ningún dron ni interfaz del GCS lo use.
-  **Hecho (2026-10-31)**: `images/msgs/noetic.repos` escrito. `MUAV_GCS_interfaces` `ros1` @ `4c09d61` (verificado:
-  `aerialcore_common` byte a byte igual a `multiUAV_system` main @ `aeb0679`, y `multiuav_interfaces` igual al de esta
-  rama) + `Onboard-SDK-ROS` @ `d7ee4b4`.
-- **R2: `images/msgs/Dockerfile` sirve para catkin (2026-10-31)**. Un solo Dockerfile para las tres distros: colcon
-  compila los paquetes catkin (`colcon-ros` pasa `-DCATKIN_INSTALL_INTO_PREFIX_ROOT=0` y agrega el hook de
-  `ROS_PACKAGE_PATH`), y `images/base` instala colcon también en noetic. `MSGS_REGEX` nombra `aerialcore_common` y
-  `dji_osdk_ros`. `MSGS_CMAKE_ARGS` lleva `-DONBOARD_SDK_ROS_ONLY_INTERFACES=ON`. Verificado con `colcon list`
-  sobre los `.repos` reales (sin compilar): noetic selecciona los 3 paquetes catkin y humble deja fuera
-  `psdk_wrapper`. `vcs import` alcanza el commit de la rama huérfana `ros1`. **Sin compilar**: falta
-  `images/build.sh noetic base msgs`, que además prueba el `add_dependencies(... INTERFACE ...)` de `dji_osdk_ros`.
-- **R2: `bridge:noetic` escrito (2026-10-31)**. `images/bridge/noetic.launch` reemplaza a `connect_uas.launch`
-  (decisión 10): hace lo mismo (master_discovery sin multicast + master_sync + rosbridge) con las tres listas de
-  hosts sacadas de `MUAV_HOSTS`. El arranque lo decide `images/bridge/start.sh` según la distro. Si `MUAV_HOSTS` está
-  vacío, avisa y levanta solo rosbridge; si tiene caracteres que no son de un host, falla. multimaster sale de apt
-  1.3.2: es lo que usa `muavgcs:noetic` con la flota, y `143f8e4` de los drones también es 1.3.2. Sin `ROS_MASTER_URI`
-  ni `ROS_HOSTNAME`, igual que la imagen actual (`container_run.sh` los pasa si están en el host). Verificado sin
-  compilar: `roslaunch --dump-params` da listas YAML correctas y la validación de `start.sh` se probó con varios casos.
-  **Para el GCS (fuera de este repo)**: `compose.ros1.yaml` sobreescribe el `command` con
-  `roslaunch aerialcore_gui connect_uas.launch`. Con `bridge:noetic` hay que quitarlo y pasar `MUAV_HOSTS`.
-- **R2: perfil OSDK del M300 escrito (2026-10-31), sin compilar.**
-  - `Dockerfile.ros1`: los ~43 `git clone` pasan a `devices/m300/noetic_ros.repos`. Los tags se mantienen y las 14
-    ramas quedan fijadas por commit. Verificado contra el Dockerfile viejo: mismos repos y mismos tags.
-  - `Dockerfile.osdk`: Onboard-SDK fijado en `118e2825`. Workspace = contrato + `noetic.repos`, compilado con
-    `catkin_make --only-pkg-with-deps onboard_dji simple_vs ros_rtsp fkie_master_discovery fkie_master_sync`. Fuera
-    `grpcio`: lo pedía `fkie_node_manager_daemon`, que ya no se compila.
-  - Multimaster del dron: `images/bridge/multimaster.launch` es el mismo archivo que usa `bridge:noetic`, con los
-    hosts por `MUAV_HOSTS` (antes estaban escritos en `onboard_dji/launch/multimaster-noetic.launch`). Cada lado lista
-    al OTRO: el GCS a los drones y el dron a los GCS.
-  - Credenciales OSDK: `cfg/UserConfig_osdk.txt` (gitignored). `entrypoint_osdk.sh` reescribe los `<param>` de
-    `dji_vehicle_node.launch` pasando los valores por env, no interpolados en el código. Probado con valores falsos
-    contra el launch real.
-  - `container_run.sh <psdk|osdk>` y `tmuxinator_{psdk,osdk}.yml`. Arreglada la carrera de `docker run` entre
-    paneles: solo el primero crea el contenedor. En OSDK, `roscore` va en su propio panel.
-- **R2: M210 escrito (2026-10-31), sin compilar.** Raspberry Pi (arm64, sin GPU), todos en Noetic: **Melodic queda
-  fuera** (`dji_M210_melodic.yaml` del GCS es legado). Antes corría nativo; ahora en contenedor sobre
-  `muav/base:noetic` (multi-arch, apt de Noetic para focal arm64: no hace falta ROS desde fuentes).
-  - `noetic.repos`: `onboard_dji` rama `M210` (`bccfda0`, main + 60 commits sin mergear), `simple_vs` **main**
-    (`d9957ee`, sin CUDA; `cuda` solo cambia `video_resize.cpp`), `ros_rtsp`. Multimaster por apt.
-  - `atlas.launch` y `atlas-noetic.launch` son funcionalmente iguales: el segundo solo tiene credenciales escritas.
-    Se usa `atlas.launch` + `entrypoint_osdk.sh`, igual que el M300.
-  - Común con el M300 en `devices/common/osdk/`: `install_osdk.sh` (Onboard-SDK `118e2825`) y `entrypoint_osdk.sh`,
-    que ahora busca el launch con `rospack find` (probado con credenciales falsas).
-  - Bug del tmuxinator viejo: pasaba `uav_id:=uav_2` a `video_resize.launch` (main), que arma `uav_$(arg uav_id)`
-    → `uav_uav_2`. Ahora se pasa el número (`id=2`) a `atlas.launch` y al resize.
-  - `config/ros_rtsp_stream_setup.yaml` DERIVADO del M300: la config real vive solo en la Pi. A verificar.
-  - Ojo: el `.bashrc` viejo del M210 usa rutas `/home/nvidia/...` (de Jetson); `devices/init` usa `/home/ubuntu`.
-  - Verificado con los `.repos` reales: se compilan `aerialcore_common dji_osdk_ros onboard_dji ros_rtsp simple_vs`
-    y rosdep resuelve todas las claves.
-- **R2: M600 FUERA (2026-10-31).** No se usa. Su tmuxinator lanzaba `beginner_tutorials`, un paquete que no está en
-  ningún repo. No hay `devices/m600`; `M600.yml` se va con `multiuav_bringup/`.
-- **R2: VTOL escrito (2026-10-31), sin compilar.** Es el `px4_mavros` del plan: Raspberry Pi, Noetic, antes nativo y
-  ahora sobre `muav/base:noetic`.
-  - `noetic.repos`: `onboard_px4` **main** (`89d6c79`), `grvc-ual` noetic (`95a9e7b`, por `px4_bringup`; ningún
-    script viejo lo instalaba), `arpoma16/grvc-utils` noetic (`122ff38`, por `mission_lib`).
-  - **No `feature/wirispro`**: depende de `wirispro_manager`, y `miggilcas/wirispro_manager` es privado o no existe
-    (solo hay un checkout local en `~/work/wirispro_manager`, `db7d5dd`). El VTOL pierde el servicio de la WIRIS Pro.
-  - Se compila solo `onboard_px4 px4_bringup` (4 de los 22 paquetes del `src/`). rosdep sobre esos y con
-    `--skip-keys gazebo_ros` (run_depend de `px4_bringup` solo para el modo sitl): sin Gazebo en la Pi. Verificado.
-  - mediamtx fijado por digest (índice multi-arch con `linux/arm64`). Corre en el host.
-  - `images/base/muav_env.sh` carga `MUAV_WS` (el workspace del dispositivo) si la imagen la define.
-  - Fuera de este repo: `atlas.launch` tiene escritos `fcu_url` y `gcs_url` (`udp://@192.168.0.123:14550`).
-- **R2: `dev:noetic` escrito (2026-10-31), sin compilar.** `images/dev/Dockerfile` sirve para todas las distros
-  (`ros-dev-tools` solo en ROS 2). En noetic agrega lo que hace falta para compilar en `/ws` el código de los drones
-  ROS 1 (Onboard-SDK `118e2825` vía `devices/common/osdk/install_osdk.sh`, mavros + datasets, multimaster,
-  GStreamer RTSP, libusb/ffmpeg) y **PX4 v1.14.4 SITL + Gazebo 11 compilado en la imagen** (`/opt/px4/PX4-Autopilot`,
-  con `Tools/setup/ubuntu.sh --no-nuttx` + `DONT_RUN=1 make px4_sitl_default gazebo-classic`).
-  `WITH_PX4_SIM=false` lo omite. Antes se clonaba y compilaba A MANO en el volumen (`initDev.sim.sh`), sobre
-  `px4io/px4-dev-ros-noetic`, una imagen sin versión fija.
-  - Bridge dentro (decisión 13): `/opt/muav/bridge/start.sh`, los mismos archivos que `bridge:<distro>`.
-  - `images/dev/tmuxinator_px4_sim.yml` (de `vtol/px4-vtol-sim.yaml`): roscore + `onboard_px4 px4-simulation.launch`
-    + SITL (`model=standard_vtol` por defecto) + bridge. Requiere `devices/vtol/noetic.repos` en `ws/noetic/src`.
-  - Lint: `docker build --check` sin avisos en todos los Dockerfiles nuevos (con bases públicas de reemplazo, porque
-    las `muav/*` todavía no existen).
-- **Drones falsos (resuelto 2026-10-31): `images/dev/mock/`.** `uavServices.py` → `uav_mock.py` (`git mv`, con
-  historia). Es un dron FALSO de ROS 1 que expone los topics y servicios de `dji_M300`, `dji_M600` o `px4` y vuela la
-  misión que le cargan. Sirve para ver y probar el GCS sin hardware. Va aquí y no en `onboard_dji`: imita también
-  PX4 y prueba al GCS contra el contrato, no al código DJI. Solo necesita los mensajes del contrato (corre en
-  `dev:noetic`, `/opt/muav/mock`).
-  - `mock_fleet.sh` reemplaza a `simulate_{uav,muav}.launch` (rotos: apuntaban al paquete `multiuav_gcs_bringup`,
-    que ya no existe), con la misma flota por defecto. Le da a cada dron un `__name` distinto.
-  - Arreglos: shebang `python3`; la descarga simulada usa `shutil` en vez de `os.system` con un texto armado con datos
-    del GCS; `~media_dir` como parámetro.
-  - Borrados: `scripts/utils/` (posproceso de imágenes térmicas DJI, no se usa) y su `Readme.md`. En la limpieza se
-    van `test_publisher.py` (versión vieja del mock) y `simulate_*.launch`.
-- **R2: `devices/common` (2026-10-31).** Origen: `multiuav_bringup/devices/init`.
-  - `boot/`: `muav-timesync.service` (systemd, `Type=simple`) + `muav-timesync.sh`. Le pide la hora al GCS
-    (`GET :4000/api/server/datetime`, verificado en `multiuav_gcs/server/routes`) y la aplica. Reemplaza a
-    `rc.local` → `init.sh` → `synchdate.sh`, con el GCS como parámetro en `/etc/muav/boot.env` en vez de escrito en
-    el script. `install.sh` lo instala sin pisar la config. Probado con un GCS falso y `date` falso.
-  - `multimaster_watch.sh` (de `init/ros/multimaster.sh`): multimaster con watchdog DENTRO de los contenedores
-    ROS 1 (M300 OSDK, M210, VTOL). Espera al roscore del GCS (`:11311`, sin depender de `ping`) y relanza si el GCS no
-    aparece en `list_masters`. Lo lanzan los tmuxinator. Probado con dobles: encontró y corregí un bug, porque el
-    `trap` de INT/TERM no terminaba el script y el bucle no se podía parar.
-  - VPN: el servicio estándar `openvpn-client@` (README). Verificado en TODA la historia: el único `.login.text`
-    commiteado solo tiene `user`/`password` (relleno); nunca se commiteó un `.ovpn`.
-  - No migrados: `init/ros/DJI_supervisor.js` (roto) y `M300/ros/` (supervisor pm2 nativo, reemplazado por los
-    contenedores y los tmuxinator).
-- **rosdep y Noetic EOL**: `rosdep update` sin `--include-eol-distros` BORRA Noetic del caché, y deja de resolver
-  claves (`nmea_msgs`, `theora_image_transport`; verificado). `images/base` actualiza con la opción y deja el alias
-  `rosdep-update`. Los Dockerfiles no llaman a `rosdep update`: usan el caché de la imagen, que funciona.
-- **SEGURIDAD: SEGUNDO par de credenciales DJI expuesto.** `alvcaballero/onboard_dji` (público), rama `M210`,
-  `launch/atlas-noetic.launch`: `app_id` + `enc_key` de OTRA app (comparado por hash, distinta de la de abajo).
-  Rotar también.
-- **SEGURIDAD: credenciales DJI en un repo público.** `miggilcas/Onboard-SDK-ROS` (`launch/dji_vehicle_node.launch`,
-  incluido `d7ee4b4`) tiene un `app_id` y un `enc_key` escritos. Hay que rotarlos en el portal DJI y avisar al
-  dueño del repo. Siguen en la historia de git aunque se borren del archivo. Este repo no copia ese archivo y el
-  entrypoint los pisa al arrancar.
-- **Credenciales DJI del M300 (confirmado: SON credenciales)**: `~/work/M300/app_ros2/psdk_ros2/psdk_wrapper/cfg/`
-  tiene cambios sin commitear (`link_config.json`, `psdk_params.yaml`, `dji_sdk_config.json`). NUNCA a git ni al
-  fork: en `devices/m300/` solo va un `.example` con los valores vacíos, y el real se añade al `.gitignore` antes
-  de copiar nada. Mismo trato que `dji_psdk_config.json` y `UserConfig_*.txt`. Verificar con `git status` antes de
-  cada commit de R1.
-- **px4_msgs: el GCS no está alineado con la decisión 15** (confirmada 2026-10-31). `images/msgs/humble.repos` fija
-  `v1.15.4`, pero el GCS espera `main`: `server/config/devices/interfaces/px4_ros2.yaml` suscribe a
-  `vehicle_status_v4`, `battery_status_v1`, etc. (no existen en 1.15) y `infra/external.md` › Versiones de mensajes
-  de PX4 pone el `px4_msgs` del rosbridge en `main`. Hasta adaptar el GCS (fuera de este repo), la interfaz
-  `px4_ros2` no funciona contra `bridge:humble`. El translation node a bordo debe traducir HACIA 1.15 (v0).
-- **`MUAV_GCS_interfaces` (resuelto 2026-10-31)**: el checkout de desarrollo es
-  `~/ros2_px4_ws/src/work/MUAV_GCS_interfaces` (Jazzy), no el de `px4_ros2_docker` (que quedó en `4a8ffcc`). Contrato
-  Humble subido a `59ebddf` (pusheado). Neto respecto de `4a8ffcc`: `OffboardCommand` msg/ack/srv nuevos (los pide
-  `px4_ros2.yaml:63`) y `Mission.finish_action` con default 1 (go home). `GCSCommand`/`GCSCommandAck` sin cambios de
-  contenido. Compatible en el cable: los defaults no viajan y el type hash de Jazzy los excluye
-  (`rosidl_generator_type_description.calculate_type_hash`). El M300 no usa `Mission`. En R3: MISMO commit en `jazzy.repos`.
-- **Registry**: por ahora build local. Publicar en GHCR cuando haya más usuarios.
-- **README.md**: hecho (2026-10-31), con el mapa del sistema.
-- **R2 paso 5, limpieza (hecha 2026-10-31, a pedido, ANTES de construir y probar)**: borrados `docker/`,
-  `multiuav_bringup/`, `multiuav_interfaces/` y los submódulos `onboard_dji` y `onboard_px4`. Antes se comprobó que
-  los submódulos no tenían cambios, commits fuera de GitHub ni stashes, y que lo nuevo solo los nombra en comentarios
-  "Origen:". Si algo de R2 falla al construir, lo viejo está en la historia (último commit con todo: el anterior a
-  la limpieza).
-  - Credenciales locales (ignoradas, NO commiteadas) movidas sin abrir: `UserConfig_osdk.txt` →
-    `devices/m300/cfg/`; `UserConfig_psdk.txt` y `dji_psdk_config.json` (formato viejo) → `devices/m300/cfg/legacy/`,
-    para pasarlas a mano a `psdk_params.yaml` / `link_config.json`.
-  - Rescatado: los netplan como `devices/{m300,m210}/host/netplan.yaml.example` (contraseñas reemplazadas con `sd`,
-    sin que pasaran por la conversación; verificado que no se filtró ninguna). La config RTSP real del M210
-    (`devices/ros-rtsp/stream_setup.yaml`, `uav_2`) reemplaza a la que se había derivado del M300. Las notas de red del
-    Readme del M300 van a `devices/m300/README.md`.
-  - Descartado: `vtol/stream/` (herramientas sueltas, sin uso), `M300/images/image.png` (nadie la usa), los
-    tmuxinator viejos, `test_publisher.py`, los `.bashrc` con alias.
-  - `.gitignore`: patrones genéricos de credenciales (`**/UserConfig*.txt`, `**/dji_psdk_config.json`, `**/*.ovpn`,
-    `**/*login.text`) además de `devices/*/cfg/*`.
-- **SEGURIDAD: contraseñas WiFi commiteadas (TERCERA exposición).** `multiuav_bringup/devices/M300/Netplan.yaml` (2) y
-  `M210/50-cloud-init.yaml` (1) tenían contraseñas WiFi reales en este repo público. Borrarlas no las saca de la
-  historia: **cambiar esas contraseñas** en los routers/APs.
+## Mapa de esta máquina (2026-10-31)
 
-## Mapa de esta máquina (relevado 2026-10-31)
-
-Rutas de la máquina de desarrollo (`grvc`), para quien ejecute el plan. Al cerrar el plan se borra esta sección:
-las rutas pasan a un `local.env` gitignored (patrón de `multiuav_gcs/infra/local.env`).
-
-**Regla de alcance: SOLO se modifica `/home/grvc/work/multiUAV_system`.** Todo lo demás se lee y se copia, no se
-edita ni se commitea.
-
-### Este repo
-
-| Ruta | Remote | Rama / versión |
-|---|---|---|
-| `/home/grvc/work/multiUAV_system` | `alvcaballero/multiUAV_system` | `refactor/rename-packages` (`d0dd48a`); default `main` |
-| `…/multiUAV_system/multiuav_gui` (submódulo GCS) | `alvcaballero/multiuav_gui` | `7d4b1df` (`v1.4-184`) |
-| `…/multiUAV_system/onboard_dji` (submódulo) | `alvcaballero/onboard_dji` | `refactor/rename-packages` (`66b809e`) |
-| `…/multiUAV_system/onboard_px4` (submódulo) | `alvcaballero/onboard_px4` | `refactor/rename-pkgs` (`249a32c`) |
-
-### Entorno ROS 1 actual (Noetic)
+Al cerrar el plan, estas rutas pasan a un `local.env` gitignored (patrón de `multiuav_gcs/infra/local.env`).
 
 | Ruta | Qué es | Remote / versión |
 |---|---|---|
-| `/home/grvc/work/multiUAV_system/docker/` | Dockerfiles gcs/sim + `container_run.sh` (imágenes `muavgcs:ros1-gcs`, `muavgcs:ros1-sim`) | — |
-| `/home/grvc/work/ros_docker_volume` | Volumen montado en `/app` del contenedor (NO es repo) | — |
-| `…/ros_docker_volume/Onboard-SDK` | DJI OSDK, compilado con cmake | `dji-sdk/Onboard-SDK` `master` (`4.1.0-34`) |
-| `…/catkin_ws/src/multiUAV_system` | Clon de ESTE repo, otra versión | `main` (`v1.2-16-gac7f051`) |
-| `…/catkin_ws/src/Onboard-SDK-ROS` | `dji_osdk_ros` (msgs + nodos) | `miggilcas/Onboard-SDK-ROS` `dev` (`d7ee4b4`) |
-| `…/catkin_ws/src/grvc-utils` | `mission_lib` (PX4 mavros) | `arpoma16/grvc-utils` `noetic` |
-| `…/catkin_ws/src/robofleet_client` | — | `arpoma16/robofleet_client` `master` |
-| `…/catkin_ws/src/{ros_rtsp,simple_vs}` | Vídeo | `CircusMonkey/ros_rtsp`, `miggilcas/simple_vs` |
-| `…/catkin_ws/src/multiUAV_system/multiuav_gui/launch/connect_uas.launch` | El que lanza el compose del GCS (`roslaunch aerialcore_gui connect_uas.launch`): vive en el GCS VIEJO, submódulo del clon de `main` | hosts con `M300-NS-15`; la copia de `multiuav_bringup/launch/` tiene `nvidia2` |
+| `/home/grvc/work/multiUAV_system` | ESTE repo | `alvcaballero/multiUAV_system`, `refactor/rename-packages` |
+| `~/work/px4/llm_planner_gcs/multiuav_gcs` | Checkout de desarrollo del GCS (solo lectura) | `alvcaballero/multiuav_gui` `feat/eve-agent-integration` |
+| `…/multiuav_gcs/infra/{compose,repos,external.md}` | Lo que el GCS espera de los bridges y los drones | — |
+| `…/multiuav_gcs/server/config/devices/interfaces/` | `messageType` por interfaz: lo que el bridge debe deserializar | — |
+| `~/work/px4_ros2_docker` | Entorno Humble + PX4 1.15.4 (fuente para R3; checkouts ATRASADOS respecto de GitHub) | `arpoma16/px4_ros2_docker` `compose2` |
+| `~/ros2_px4_ws/src/work` | Clon Jazzy de trabajo; `MUAV_GCS_interfaces` de desarrollo | `compose2` |
+| `~/work/M300/app_ros{1,2}` | Lo que corría a bordo del M300 (ya relevado) | sin versionar |
+| `~/work/ros_docker_volume` | Volumen del entorno ROS 1 viejo (reemplazado por `ws/` + `dev:noetic`) | sin versionar |
+| `~/work/wirispro_manager` | Único checkout de `wirispro_manager` (`db7d5dd`) | remote inaccesible |
+| `~/PX4-Autopilot` | Firmware PX4 del host, `main` — NO es el contrato | `PX4/PX4-Autopilot` |
 
-### M300 (Jetson Orin Nano, L4T r36.4)
-
-| Ruta | Qué es | Remote / versión |
-|---|---|---|
-| `/home/grvc/work/multiUAV_system/multiuav_bringup/devices/M300/` | Docker versionado del M300: opencv → ros1/ros2 → osdk/psdk (`docker/container_build.sh`) | este repo |
-| `/home/grvc/work/M300` | Carpeta NO versionada con lo que va a bordo | — |
-| `/home/grvc/work/M300/app_ros1/docker` | Copia vieja del docker del M300 (`docker2/`, `try2/`: restos) | — |
-| `/home/grvc/work/M300/app_ros1/Readme.md` | Noetic en Jetson vía `jetson-containers` | — |
-| `/home/grvc/work/M300/app_ros1/{multiUAV_system,ros_rtsp,simple_vs}` | Clones del lado ROS 1 | GitHub |
-| `/home/grvc/work/M300/app_ros2/M300-PSDK-ROS2.yml` | tmuxinator del M300 PSDK | — |
-| `/home/grvc/work/M300/app_ros2/{camera_file_downloader,camera_rtsp_bridge,missions}` | Utilidades a bordo, sin repo | — |
-| `/home/grvc/work/M300/app_ros2/psdk_ros2` | **Upstream** `umdlife/psdk_ros2` `feat/waypoint-v2` (`18e6967`), con config local sin commitear | NO es el fork |
-| `/home/grvc/work/M300/app_ros2/{MUAV_GCS_interfaces,MUAV_psdk_offboard}` | Remote `ssh://grvc@10.20.0.2/…/px4_ros2_docker/…` | Atrasados respecto de `px4_ros2_docker` (sus commits ya están allí: no hay trabajo perdido) |
-
-### Entorno ROS 2 (Humble / Jazzy, PX4, PSDK)
-
-| Ruta | Qué es | Remote / versión |
-|---|---|---|
-| `/home/grvc/work/px4_ros2_docker` | Entorno Humble + PX4 1.15.4. Modelo de organización a seguir. `.repos` en la raíz | `arpoma16/px4_ros2_docker` `compose2` (`af19992`) |
-| `…/px4_ros2_docker/Docker/` | `px4_gz`, `ros2`, `ros2_microdds`, `ros2_ws`, `ros_gz` Dockerfiles | — |
-| `…/px4_ros2_docker/psdk_ros2` | **El fork** (decisión 14) | `arpoma16/psdk_ros2` `dev/integration` (`1.3.2-40`) |
-| `…/px4_ros2_docker/px4_msgs` | Contrato PX4 (decisión 15) | `PX4/px4_msgs` `release/1.15` (`v1.15.4`) |
-| `…/px4_ros2_docker/MUAV_GCS_interfaces` | Mensajes del GCS (ROS 2) | `arpoma16/MUAV_GCS_interfaces` `main` (`4a8ffcc`) |
-| `…/px4_ros2_docker/MUAV_psdk_offboard` | Nodo a bordo PSDK | `arpoma16/MUAV_psdk_offboard` `main` (`cdcffa5`) |
-| `…/px4_ros2_docker/{MUAV_GCS_gz,MUAV_GCS_offboard,MUAV_psdk_gz}` | Sim y offboard | `arpoma16/*` `main` |
-| `/home/grvc/ros2_px4_ws` | Workspace Jazzy (PX4 + MQTT) | `src/work` = otro clon de `px4_ros2_docker` (`compose2`, `085f11b`) |
-| `…/ros2_px4_ws/src/work/MUAV_GCS_interfaces` | **Checkout de desarrollo de los mensajes del GCS** (Jazzy) | `arpoma16/MUAV_GCS_interfaces` `main`, 2 commits sin pushear + cambios sin commitear |
-| `/home/grvc/PX4-Autopilot` | Firmware PX4 en el host | `main` (`v1.18.0-beta1-956`) — NO es el contrato |
-
-### GCS y servicios (solo lectura)
-
-| Ruta | Qué es | Remote / versión |
-|---|---|---|
-| `/home/grvc/work/px4/llm_planner_gcs` | Repo paraguas LLM planner | `arpoma16/LLM_MUAV_Planner_GCS` `main` |
-| `/home/grvc/work/px4/llm_planner_gcs/multiuav_gcs` | **Checkout de desarrollo del GCS** | `alvcaballero/multiuav_gui` `feat/eve-agent-integration` (`v2.0-207-g14075b8`) |
-| `…/multiuav_gcs/infra/` | Compose del GCS; `compose.ros1.yaml` usa `muavgcs:ros1`, `compose.ros2.yaml` `muavgcs:ros2` | — |
-| `…/multiuav_gcs/infra/external.md` | Qué mensajes y versiones espera el GCS por interfaz | — |
-| `…/multiuav_gcs/infra/repos/*.repos` | `.repos` del GCS (se reemplazan por los de este repo, fuera de este plan) | — |
-| `…/multiuav_gcs/server/config/devices/interfaces/` | `messageType` de cada interfaz: lo que el bridge debe poder deserializar | — |
-| `…/multiuav_gcs/infra/local.env` | Rutas locales del GCS | gitignored |
-| `/home/grvc/work/px4/llm_planner_gcs/{mcp_server,Smart-Flies-MUAVPlanner}` | MCP y planner (imagen `muavgcs:planner`) | submódulos |
-
-### Imágenes Docker en esta máquina
-
-`muavgcs:noetic` (5.46 GB, la que hace de bridge ROS 1; el compose espera `muavgcs:ros1`), `ros2-px4-ws:humble`,
-`ros2-px4:humble`, `ros2-microdds:humble`, `ros2-desktop:humble`, `ros:humble`, `muav-arducopter-sitl:4.7.2`.
-Las imágenes Jetson del M300 (`opencv-cuda`, `ros-humble-psdk`, `ros-noetic-osdk` `:l4t-r36.4.0`) se construyen
-EN el Jetson, no aquí.
+Imágenes viejas aún en esta máquina (reemplazables cuando se pruebe lo nuevo): `muavgcs:noetic` (bridge ROS 1
+actual), `ros2-px4-ws:humble`, `ros2-px4:humble`, `ros2-microdds:humble`, `ros2-desktop:humble`.

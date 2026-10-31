@@ -1,0 +1,47 @@
+# Simulación PX4 (SITL + Gazebo 11) en dev:noetic. Origen: multiuav_bringup/devices/vtol/px4-vtol-sim.yaml.
+#   tmuxinator start -p images/dev/tmuxinator_px4_sim.yml [model=standard_vtol] [sys=~/work/multiUAV_system]
+# Requiere onboard_px4 compilado en el workspace de desarrollo (ws/noetic):
+#   vcs import ws/noetic/src < devices/vtol/noetic.repos
+#   ./container_run.sh dev noetic      # dentro: cd /ws && catkin_make
+# px4-simulation.launch: mavros por UDP al SITL (udp://:14540@localhost:14556) + px4_mission_node, ns /uav_2.
+<%
+default_model = 'standard_vtol'
+default_sys   = '~/work/multiUAV_system'
+model   = @settings["model"] || default_model
+sys_dir = @settings["sys"]   || default_sys
+run = "#{sys_dir}/container_run.sh dev noetic"
+%>
+
+name: px4_sim
+root: ~/
+
+on_project_exit: tmux kill-session -t px4_sim
+
+windows:
+  - px4-sim:
+      layout: tiled
+      panes:
+        # Un solo master: lo levanta este panel. El primer panel crea el contenedor; el resto entra con docker exec.
+        - roscore:
+            - <%= run %>
+            - roscore
+        - main:
+            - sleep 3
+            - <%= run %>
+            - sleep 2
+            - roslaunch onboard_px4 px4-simulation.launch
+        - simulation:
+            - sleep 3
+            - <%= run %>
+            - sleep 5
+            - cd /opt/px4/PX4-Autopilot
+            - export PX4_HOME_LAT=28.452386
+            - export PX4_HOME_LON=-13.867138
+            - export PX4_HOME_ALT=28.5
+            - make px4_sitl gazebo-classic_<%= model %>
+        # Bridge del GCS dentro de dev (decisión 13). Sin MUAV_HOSTS: solo rosbridge, el dron simulado es local.
+        - rosbridge:
+            - sleep 3
+            - <%= run %>
+            - sleep 10
+            - /opt/muav/bridge/start.sh

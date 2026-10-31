@@ -1,0 +1,17 @@
+# Sincroniza la hora del dron con el GCS al arrancar (devices/common/boot/muav-timesync.sh).
+# Reemplaza a /etc/rc.local → init.sh → synchdate.sh. Lo instala devices/common/boot/install.sh.
+[Unit]
+Description=MUAV: hora del dron desde el GCS
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+# simple, no oneshot: espera al GCS sin límite y no debe frenar el arranque del resto (el viejo iba con &).
+Type=simple
+EnvironmentFile=-/etc/muav/boot.env
+ExecStart=/opt/muav/boot/muav-timesync.sh
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

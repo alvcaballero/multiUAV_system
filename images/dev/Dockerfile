@@ -23,6 +23,11 @@ ARG PX4_VERSION=v1.14.4
 # Onboard-SDK: el mismo commit que los drones OSDK.
 ARG OSDK_VERSION=118e2825a347499efb8ed253146552c5b9b10779
 
+# Qt y Gazebo (GUI) necesitan un XDG_RUNTIME_DIR propio con 0700; sin él avisan y a veces la GUI no arranca. En la
+# imagen y no en container_run.sh: así lo tienen igual la terminal y el devcontainer.
+ENV XDG_RUNTIME_DIR=/tmp/runtime-root
+RUN mkdir -p -m 0700 /tmp/runtime-root
+
 # Común a todas las distros
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ros-${ROS_DISTRO}-desktop \
@@ -113,6 +118,10 @@ RUN if [ "$ROS_DISTRO" = jazzy ] && [ "$WITH_PX4_SIM" = true ]; then \
 #   /opt/muav/bridge/start.sh       (noetic: MUAV_HOSTS=<drones> para el multimaster)
 COPY images/bridge/start.sh images/bridge/noetic.launch images/bridge/multimaster.launch /opt/muav/bridge/
 RUN chmod +x /opt/muav/bridge/start.sh
+
+# Dependencias (apt) de lo que haya en /ws/src: devcontainer al crearse, o a mano en la terminal.
+COPY images/dev/ws_rosdep.sh /opt/muav/ws_rosdep.sh
+RUN chmod +x /opt/muav/ws_rosdep.sh
 
 # Drones FALSOS para ver y probar el GCS sin hardware (ROS 1): /opt/muav/mock/mock_fleet.sh. Ver images/dev/mock/.
 COPY images/dev/mock/ /opt/muav/mock/

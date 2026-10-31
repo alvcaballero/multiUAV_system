@@ -1,7 +1,8 @@
 #!/bin/bash
 # Arranca un contenedor del sistema.
 #   ./container_run.sh dev <distro> [restart]     desarrollo: monta el workspace en /ws (ver "dev" abajo)
-#       MUAV_WS_<DISTRO>=<dir>: workspace propio (ej. MUAV_WS_JAZZY=~/ros2_px4_ws); sin ella, ws/<distro>.
+#       MUAV_WS_<DISTRO>=<dir>: otro workspace DEL CONTENEDOR (ej. MUAV_WS_HUMBLE=~/ws_psdk); sin ella, ws/<distro>.
+#       Nunca uno compilado en el host (ej. ~/ros2_px4_ws): sus rutas absolutas se rompen en /ws y colcon lo pisa.
 #       Si el devcontainer de VS Code (muav_devcontainer_<distro>) está corriendo, entra en ESE: un solo entorno.
 #   ./container_run.sh bridge <distro>            rosbridge del GCS (primer plano, --rm)
 #       noetic: MUAV_HOSTS=<dron1>,<dron2>,... ./container_run.sh bridge noetic   (multimaster)
@@ -46,6 +47,15 @@ WS_DIR="${!WS_VAR:-$ROOT/ws/$DISTRO}"
 WS_DIR="${WS_DIR/#\~/$HOME}"
 mkdir -p "$WS_DIR/src"
 WS_DIR="$(cd "$WS_DIR" && pwd -P)"
+
+source "$ROOT/images/dev/ws_guard.sh"
+ELSEWHERE=$(muav_ws_built_elsewhere "$WS_DIR")
+if [ -n "$ELSEWHERE" ]; then
+    echo "[run] ERROR: $WS_DIR está compilado FUERA del contenedor ($ELSEWHERE): es un entorno local." >&2
+    echo "[run]   Montarlo rompe sus rutas absolutas y un colcon build dentro pisa el del host." >&2
+    echo "[run]   Usá un workspace propio del contenedor: unset $WS_VAR (→ ws/$DISTRO) o apuntala a otro directorio." >&2
+    exit 1
+fi
 
 # Qué monta en /ws un contenedor existente. Entrar en uno con OTRO workspace compila donde no creés, sin error.
 check_ws() {

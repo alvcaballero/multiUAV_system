@@ -34,7 +34,10 @@ Cada contenedor arrancaba de cero y vivía en un sitio distinto, así que nada s
    decía "repo propio de solo-mensajes", ver Pendientes). El paquete se sigue llamando **`dji_osdk_ros`**: rosbridge
    identifica el tipo por `paquete/Mensaje` y ROS 1 compara el MD5 de la definición. Con otro nombre, deja de
    interpretarse sin error.
-8. **`multiuav_interfaces` sale a su repo** y entra por `images/msgs/noetic.repos`.
+8. **`multiuav_interfaces` sale a la rama `ros1` de `arpoma16/MUAV_GCS_interfaces`** (revisada 2026-10-31; antes decía
+   "repo propio") y entra por `images/msgs/noetic.repos`. La rama es HUÉRFANA (catkin; `main` es ROS 2/ament): nunca
+   se mergean. Lleva también `aerialcore_common`, de contenido idéntico, mientras la flota migra. Una rama por
+   versión de ROS en un repo de mensajes no contradice la decisión 3, que es para ESTE repo.
 9. **`multiuav_bringup` se vacía hacia `devices/` y se borra.** Su contenido sí se usa; lo que sobra es que sea
    un paquete catkin.
 10. **`connect_uas.launch` deja de ser un launch por proyecto**: es configuración del bridge ROS 1 (multimaster +
@@ -186,6 +189,9 @@ Estado (2026-10-31): pasos 1-4 escritos, **sin construir ni probar**. Falta el 5
   que según la versión de CMake puede fallar. Es lo primero que hay que probar en R2.
 - **Mensajes ROS 1 en transición**: el contrato noetic lleva `aerialcore_common` (flota actual) Y `multiuav_interfaces`.
   Se saca `aerialcore_common` cuando ningún dron ni interfaz del GCS lo use.
+  **Hecho (2026-10-31)**: `images/msgs/noetic.repos` escrito. `MUAV_GCS_interfaces` `ros1` @ `4c09d61` (verificado:
+  `aerialcore_common` byte a byte igual a `multiUAV_system` main @ `aeb0679`, y `multiuav_interfaces` igual al de esta
+  rama) + `Onboard-SDK-ROS` @ `d7ee4b4`. Falta adaptar `images/msgs/Dockerfile` a catkin en R2 (regex + flag OSDK).
 - **Credenciales DJI del M300 (confirmado: SON credenciales)**: `~/work/M300/app_ros2/psdk_ros2/psdk_wrapper/cfg/`
   tiene cambios sin commitear (`link_config.json`, `psdk_params.yaml`, `dji_sdk_config.json`). NUNCA a git ni al
   fork: en `devices/m300/` solo va un `.example` con los valores vacíos, y el real se añade al `.gitignore` antes

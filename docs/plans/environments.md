@@ -273,6 +273,19 @@ Estado (2026-10-31): pasos 1-4 escritos, **sin construir ni probar**. Falta el 5
     del GCS; `~media_dir` como parámetro.
   - Borrados: `scripts/utils/` (posproceso de imágenes térmicas DJI, no se usa) y su `Readme.md`. En la limpieza se
     van `test_publisher.py` (versión vieja del mock) y `simulate_*.launch`.
+- **R2: `devices/common` (2026-10-31).** Origen: `multiuav_bringup/devices/init`.
+  - `boot/`: `muav-timesync.service` (systemd, `Type=simple`) + `muav-timesync.sh`. Le pide la hora al GCS
+    (`GET :4000/api/server/datetime`, verificado en `multiuav_gcs/server/routes`) y la aplica. Reemplaza a
+    `rc.local` → `init.sh` → `synchdate.sh`, con el GCS como parámetro en `/etc/muav/boot.env` en vez de escrito en
+    el script. `install.sh` lo instala sin pisar la config. Probado con un GCS falso y `date` falso.
+  - `multimaster_watch.sh` (de `init/ros/multimaster.sh`): multimaster con watchdog DENTRO de los contenedores
+    ROS 1 (M300 OSDK, M210, VTOL). Espera al roscore del GCS (`:11311`, sin depender de `ping`) y relanza si el GCS no
+    aparece en `list_masters`. Lo lanzan los tmuxinator. Probado con dobles: encontró y corregí un bug, porque el
+    `trap` de INT/TERM no terminaba el script y el bucle no se podía parar.
+  - VPN: el servicio estándar `openvpn-client@` (README). Verificado en TODA la historia: el único `.login.text`
+    commiteado solo tiene `user`/`password` (relleno); nunca se commiteó un `.ovpn`.
+  - No migrados: `init/ros/DJI_supervisor.js` (roto) y `M300/ros/` (supervisor pm2 nativo, reemplazado por los
+    contenedores y los tmuxinator).
 - **rosdep y Noetic EOL**: `rosdep update` sin `--include-eol-distros` BORRA Noetic del caché, y deja de resolver
   claves (`nmea_msgs`, `theora_image_transport`; verificado). `images/base` actualiza con la opción y deja el alias
   `rosdep-update`. Los Dockerfiles no llaman a `rosdep update`: usan el caché de la imagen, que funciona.

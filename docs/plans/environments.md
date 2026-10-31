@@ -208,6 +208,24 @@ Estado (2026-10-31): pasos 1-4 escritos, **sin construir ni probar**. Falta el 5
   compilar: `roslaunch --dump-params` da listas YAML correctas y la validación de `start.sh` se probó con varios casos.
   **Para el GCS (fuera de este repo)**: `compose.ros1.yaml` sobreescribe el `command` con
   `roslaunch aerialcore_gui connect_uas.launch`. Con `bridge:noetic` hay que quitarlo y pasar `MUAV_HOSTS`.
+- **R2: perfil OSDK del M300 escrito (2026-10-31), sin compilar.**
+  - `Dockerfile.ros1`: los ~43 `git clone` pasan a `devices/m300/noetic_ros.repos`. Los tags se mantienen y las 14
+    ramas quedan fijadas por commit. Verificado contra el Dockerfile viejo: mismos repos y mismos tags.
+  - `Dockerfile.osdk`: Onboard-SDK fijado en `118e2825`. Workspace = contrato + `noetic.repos`, compilado con
+    `catkin_make --only-pkg-with-deps onboard_dji simple_vs ros_rtsp fkie_master_discovery fkie_master_sync`. Fuera
+    `grpcio`: lo pedía `fkie_node_manager_daemon`, que ya no se compila.
+  - Multimaster del dron: `images/bridge/multimaster.launch` es el mismo archivo que usa `bridge:noetic`, con los
+    hosts por `MUAV_HOSTS` (antes estaban escritos en `onboard_dji/launch/multimaster-noetic.launch`). Cada lado lista
+    al OTRO: el GCS a los drones y el dron a los GCS.
+  - Credenciales OSDK: `cfg/UserConfig_osdk.txt` (gitignored). `entrypoint_osdk.sh` reescribe los `<param>` de
+    `dji_vehicle_node.launch` pasando los valores por env, no interpolados en el código. Probado con valores falsos
+    contra el launch real.
+  - `container_run.sh <psdk|osdk>` y `tmuxinator_{psdk,osdk}.yml`. Arreglada la carrera de `docker run` entre
+    paneles: solo el primero crea el contenedor. En OSDK, `roscore` va en su propio panel.
+- **SEGURIDAD: credenciales DJI en un repo público.** `miggilcas/Onboard-SDK-ROS` (`launch/dji_vehicle_node.launch`,
+  incluido `d7ee4b4`) tiene un `app_id` y un `enc_key` escritos. Hay que rotarlos en el portal DJI y avisar al
+  dueño del repo. Siguen en la historia de git aunque se borren del archivo. Este repo no copia ese archivo y el
+  entrypoint los pisa al arrancar.
 - **Credenciales DJI del M300 (confirmado: SON credenciales)**: `~/work/M300/app_ros2/psdk_ros2/psdk_wrapper/cfg/`
   tiene cambios sin commitear (`link_config.json`, `psdk_params.yaml`, `dji_sdk_config.json`). NUNCA a git ni al
   fork: en `devices/m300/` solo va un `.example` con los valores vacíos, y el real se añade al `.gitignore` antes

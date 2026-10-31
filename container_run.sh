@@ -2,7 +2,7 @@
 # Arranca un contenedor del sistema.
 #   ./container_run.sh dev <distro> [restart]     desarrollo: monta ws/<distro> en /ws
 #   ./container_run.sh bridge <distro>            rosbridge del GCS (primer plano, --rm)
-#       noetic: MUAV_HOSTS=<gcs>,<dron1>,... ./container_run.sh bridge noetic   (multimaster)
+#       noetic: MUAV_HOSTS=<dron1>,<dron2>,... ./container_run.sh bridge noetic   (multimaster)
 #   ./container_run.sh <dispositivo> [args...]    delega en devices/<dispositivo>/container_run.sh
 # Las imágenes salen de images/build.sh <distro>.
 set -e

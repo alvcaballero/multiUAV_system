@@ -1,0 +1,23 @@
+<!--
+  Multimaster ROS 1 (fkie): descubre y sincroniza los masters del OTRO lado. Lo usan los dos extremos:
+    - bridge:noetic (GCS)          → hosts = los drones          (images/bridge/noetic.launch)
+    - dispositivos Noetic (drones) → hosts = el/los GCS         (devices/<x>, copiado a /opt/muav/multimaster.launch)
+  Así lo hacían las copias de connect_uas.launch (GCS) y onboard_dji/launch/multimaster-noetic.launch (dron), que solo
+  diferían en la lista de hosts. Las tres listas (robot_hosts, static_hosts, sync_hosts) eran idénticas.
+
+  hosts: nombres (o IPs) separados por coma, sin espacios ni corchetes. Por defecto, $MUAV_HOSTS.
+         Los nombres se resuelven con /etc/hosts (Docker copia el del host al crear el contenedor).
+-->
+<launch>
+  <arg name="hosts" default="$(optenv MUAV_HOSTS)"/>
+
+  <node name="master_discovery" pkg="fkie_master_discovery" type="master_discovery">
+    <rosparam param="robot_hosts" subst_value="true">[$(arg hosts)]</rosparam>
+    <rosparam param="static_hosts" subst_value="true">[$(arg hosts)]</rosparam>
+    <rosparam param="send_mcast">False</rosparam>
+    <rosparam param="listen_mcast">False</rosparam>
+  </node>
+  <node name="master_sync" pkg="fkie_master_sync" type="master_sync">
+    <rosparam param="sync_hosts" subst_value="true">[$(arg hosts)]</rosparam>
+  </node>
+</launch>

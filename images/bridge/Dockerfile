@@ -1,7 +1,7 @@
 # Bridge del GCS: rosbridge con los mensajes del contrato. Uno por distro (decisión 4).
 #   docker build -f images/bridge/Dockerfile --build-arg ROS_DISTRO=humble -t muav/bridge:humble .
 #   ./container_run.sh bridge humble
-#   MUAV_HOSTS=<gcs>,<dron1>,<dron2> ./container_run.sh bridge noetic
+#   MUAV_HOSTS=<dron1>,<dron2> ./container_run.sh bridge noetic
 # Noetic agrega multimaster (decisión 10): reemplaza a connect_uas.launch con los hosts por MUAV_HOSTS.
 ARG ROS_DISTRO=humble
 ARG BASE_IMAGE=muav/msgs:${ROS_DISTRO}
@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
        fi \
     && rm -rf /var/lib/apt/lists/*
 
-COPY images/bridge/start.sh images/bridge/noetic.launch /opt/muav/bridge/
+COPY images/bridge/start.sh images/bridge/noetic.launch images/bridge/multimaster.launch /opt/muav/bridge/
 RUN chmod +x /opt/muav/bridge/start.sh
 
 CMD ["/opt/muav/bridge/start.sh"]

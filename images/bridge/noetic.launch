@@ -1,27 +1,16 @@
 <!--
   Bridge ROS 1 del GCS: multimaster (descubre y sincroniza los masters de los drones) + rosbridge (WebSocket :9090).
-  Reemplaza a connect_uas.launch (decisión 10): las copias que había solo diferían en la lista de hosts, que ahora
-  llega por MUAV_HOSTS en vez de estar escrita aquí. La lanza images/bridge/start.sh.
+  Reemplaza a connect_uas.launch (decisión 10). La lanza images/bridge/start.sh.
 
-  hosts: nombres (o IPs) de los drones Y del propio GCS, separados por coma, sin espacios ni corchetes.
-         Las tres listas de multimaster (robot_hosts, static_hosts, sync_hosts) eran idénticas en connect_uas.launch.
-         Los nombres se resuelven con el /etc/hosts del host (Docker lo copia al crear el contenedor).
+  hosts: los DRONES, separados por coma (ver multimaster.launch). Por defecto, $MUAV_HOSTS.
 -->
 <launch>
   <arg name="hosts" default="$(optenv MUAV_HOSTS)"/>
   <arg name="multimaster" default="true"/>
 
-  <group if="$(arg multimaster)">
-    <node name="master_discovery" pkg="fkie_master_discovery" type="master_discovery">
-      <rosparam param="robot_hosts" subst_value="true">[$(arg hosts)]</rosparam>
-      <rosparam param="static_hosts" subst_value="true">[$(arg hosts)]</rosparam>
-      <rosparam param="send_mcast">False</rosparam>
-      <rosparam param="listen_mcast">False</rosparam>
-    </node>
-    <node name="master_sync" pkg="fkie_master_sync" type="master_sync">
-      <rosparam param="sync_hosts" subst_value="true">[$(arg hosts)]</rosparam>
-    </node>
-  </group>
+  <include if="$(arg multimaster)" file="$(dirname)/multimaster.launch">
+    <arg name="hosts" value="$(arg hosts)"/>
+  </include>
 
   <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch"/>
 </launch>

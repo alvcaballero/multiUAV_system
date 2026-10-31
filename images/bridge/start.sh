@@ -10,7 +10,7 @@ case "$ROS_DISTRO" in
         HOSTS=$(echo "${MUAV_HOSTS:-}" | tr -d ' []')
         if [ -z "$HOSTS" ]; then
             echo "[bridge] WARN: MUAV_HOSTS vacío → SIN multimaster: solo rosbridge, sin ver ningún dron."
-            echo "[bridge]       Ejemplo: MUAV_HOSTS=<gcs>,nvidia,M300-NS-15 ./container_run.sh bridge noetic"
+            echo "[bridge]       Ejemplo (los drones): MUAV_HOSTS=nvidia,M300-NS-15 ./container_run.sh bridge noetic"
             exec roslaunch /opt/muav/bridge/noetic.launch multimaster:=false
         fi
         # Solo nombres de host / IPs: lo que entra va dentro de una lista YAML.

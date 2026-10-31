@@ -1,0 +1,77 @@
+{
+    "name": "muav dev:__DISTRO__",
+    "image": "muav/dev:__DISTRO__",
+    "workspaceMount": "source=${localEnv:MUAV_WS___DISTRO_UPPER__:__DEFAULT_WS__},target=/ws,type=bind",
+    "workspaceFolder": "/ws",
+    "initializeCommand": "bash ${localWorkspaceFolder}/.devcontainer/initialize.sh __DISTRO__",
+    "postCreateCommand": "grep -qs muav_env.sh /root/.zshrc || echo 'source /opt/muav/muav_env.sh' >> /root/.zshrc; /opt/muav/ws_rosdep.sh",
+    "shutdownAction": "none",
+    "remoteUser": "root",
+
+    "runArgs": [
+        "--name=muav_devcontainer___DISTRO__",
+        "--privileged",
+        "--network=host",
+        "--ipc=host",
+        "--volume=/tmp/.X11-unix:/tmp/.X11-unix:rw",
+        "--volume=/etc/machine-id:/etc/machine-id:ro"
+    ],
+
+    "containerEnv": {
+        "DISPLAY": "${localEnv:DISPLAY}",
+        "QT_X11_NO_MITSHM": "1",
+        "ROS_DOMAIN_ID": "${localEnv:ROS_DOMAIN_ID:0}"
+    },
+
+    "features": {
+        "ghcr.io/devcontainers/features/common-utils:2": {
+            "username": "none",
+            "installZsh": true,
+            "installOhMyZsh": true,
+            "installOhMyZshConfig": true,
+            "configureZshAsDefaultShell": true
+        },
+        "ghcr.io/devcontainers-extra/features/zsh-plugins:0": {
+            "plugins": "zsh-autosuggestions zsh-syntax-highlighting",
+            "omzPlugins": "https://github.com/zsh-users/zsh-autosuggestions.git https://github.com/zsh-users/zsh-syntax-highlighting.git"
+        }
+    },
+
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools",
+                "ms-vscode.cpptools-themes",
+                "twxs.cmake",
+                "donjayamanne.python-extension-pack",
+                "eamodio.gitlens",
+                "Ranch-Hand-Robotics.rde-pack",
+                "redhat.vscode-xml",
+                "smilerobotics.urdf",
+                "tamasfe.even-better-toml",
+                "timonwong.shellcheck",
+                "streetsidesoftware.code-spell-checker",
+                "yzhang.markdown-all-in-one",
+                "GitHub.copilot",
+                "anthropic.claude-code"
+            ],
+            "settings": {
+                "editor.tabSize": 4,
+                "terminal.integrated.fontFamily": "MesloLGM Nerd Font",
+                "terminal.integrated.fontLigatures.enabled": true,
+                "terminal.integrated.defaultProfile.linux": "zsh",
+                "terminal.integrated.profiles.linux": {
+                    "zsh": { "path": "/bin/zsh", "icon": "terminal-ubuntu" }
+                },
+                "files.associations": {
+                    "*.rviz": "yaml",
+                    "*.srdf": "xml",
+                    "*.urdf": "xml",
+                    "model.config": "xml",
+                    "*.sdf": "xml",
+                    "*.xacro": "xml"
+                }
+            }
+        }
+    }
+}

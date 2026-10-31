@@ -2,6 +2,7 @@
 # Construye la cadena de imágenes compartidas de una distro, en orden: base → msgs → bridge → dev.
 #   images/build.sh <distro> [base] [msgs] [bridge] [dev]     (sin roles = todos)
 # Los dispositivos con hardware propio (M300/Jetson) NO salen de aquí: devices/<x>/container_build.sh.
+# Al construir dev, genera también el devcontainer de esa distro (.devcontainer/generate.sh: detecta la GPU).
 set -e
 
 DISTRO=${1:?Uso: $0 <humble|jazzy|noetic> [base msgs bridge dev]}
@@ -22,4 +23,7 @@ for role in "${ROLES[@]}"; do
         --build-arg ROS_DISTRO="$DISTRO" \
         -t "muav/$role:$DISTRO" \
         "$ROOT"
+    if [ "$role" = dev ]; then
+        "$ROOT/.devcontainer/generate.sh" "$DISTRO"
+    fi
 done

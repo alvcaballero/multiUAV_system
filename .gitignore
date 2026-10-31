@@ -19,6 +19,8 @@ devices/*/cfg/*
 
 # Workspaces de desarrollo (container_run.sh dev <distro>)
 ws/
+# Devcontainers generados por máquina (.devcontainer/generate.sh: GPU detectada, rutas locales)
+.devcontainer/*/
 
 # Python
 __pycache__/

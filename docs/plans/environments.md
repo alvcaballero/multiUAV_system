@@ -262,9 +262,17 @@ Estado (2026-10-31): pasos 1-4 escritos, **sin construir ni probar**. Falta el 5
     + SITL (`model=standard_vtol` por defecto) + bridge. Requiere `devices/vtol/noetic.repos` en `ws/noetic/src`.
   - Lint: `docker build --check` sin avisos en todos los Dockerfiles nuevos (con bases públicas de reemplazo, porque
     las `muav/*` todavía no existen).
-- **`multiuav_bringup/launch/simulate_{uav,muav}.launch`: rotos.** Lanzan `uavServices.py` del paquete
-  `multiuav_gcs_bringup`, un nombre que ya no existe tras el renombre. Solo los referencia un tmuxinator del GCS
-  viejo (submódulo). Decidir antes de la limpieza: ¿se borran o se rescata `uavServices.py`?
+- **Drones falsos (resuelto 2026-10-31): `images/dev/mock/`.** `uavServices.py` → `uav_mock.py` (`git mv`, con
+  historia). Es un dron FALSO de ROS 1 que expone los topics y servicios de `dji_M300`, `dji_M600` o `px4` y vuela la
+  misión que le cargan. Sirve para ver y probar el GCS sin hardware. Va aquí y no en `onboard_dji`: imita también
+  PX4 y prueba al GCS contra el contrato, no al código DJI. Solo necesita los mensajes del contrato (corre en
+  `dev:noetic`, `/opt/muav/mock`).
+  - `mock_fleet.sh` reemplaza a `simulate_{uav,muav}.launch` (rotos: apuntaban al paquete `multiuav_gcs_bringup`,
+    que ya no existe), con la misma flota por defecto. Le da a cada dron un `__name` distinto.
+  - Arreglos: shebang `python3`; la descarga simulada usa `shutil` en vez de `os.system` con un texto armado con datos
+    del GCS; `~media_dir` como parámetro.
+  - Borrados: `scripts/utils/` (posproceso de imágenes térmicas DJI, no se usa) y su `Readme.md`. En la limpieza se
+    van `test_publisher.py` (versión vieja del mock) y `simulate_*.launch`.
 - **rosdep y Noetic EOL**: `rosdep update` sin `--include-eol-distros` BORRA Noetic del caché, y deja de resolver
   claves (`nmea_msgs`, `theora_image_transport`; verificado). `images/base` actualiza con la opción y deja el alias
   `rosdep-update`. Los Dockerfiles no llaman a `rosdep update`: usan el caché de la imagen, que funciona.

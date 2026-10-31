@@ -1,0 +1,28 @@
+# CONTRATO de mensajes ROS 2 Humble del sistema. Lo heredan bridge:humble, dev:humble y los dispositivos Humble
+# (el M300 lo importa con vcs dentro de su contenedor Jetson). Un mensaje nuevo se declara AQUÍ y solo aquí.
+# Versiones fijadas por COMMIT, nunca por rama (decisión 12). El comentario dice de qué rama sale cada commit.
+#   vcs import ws/humble/src < images/msgs/humble.repos
+repositories:
+  # Contrato PX4 (decisión 15). Otra versión de PX4 a bordo → translation node, no otro contrato.
+  # OJO: el GCS hoy espera px4_msgs main (topics _v4/_v1 en px4_ros2.yaml): ver Pendientes del plan.
+  px4_msgs:
+    type: git
+    url: https://github.com/PX4/px4_msgs.git
+    version: v1.15.4
+
+
+  # muav_gcs_interfaces: msgs/srvs/actions propios del GCS (main). MISMO commit que en jazzy.repos: el GCS tiene una
+  # sola definición. Desarrollo activo en ~/ros2_px4_ws/src/work/MUAV_GCS_interfaces (Jazzy).
+  # 59ebddf: + OffboardCommand (msg/srv, lo pide px4_ros2 del GCS) y default finish_action=1. Compatible en el cable
+  # con 4a8ffcc (lo que compiló el M300): los defaults no viajan ni entran en el type hash de Jazzy.
+  MUAV_GCS_interfaces:
+    type: git
+    url: https://github.com/arpoma16/MUAV_GCS_interfaces.git
+    version: 59ebddf7a8ae7bc48241018f9880d75d57f4d307
+
+  # psdk_interfaces (fork de umdlife, dev/integration). El repo trae también psdk_wrapper: la imagen msgs solo
+  # compila los paquetes de mensajes; el M300 compila el wrapper del MISMO checkout (interfaces y wrapper en sync).
+  psdk_ros2:
+    type: git
+    url: https://github.com/arpoma16/psdk_ros2.git
+    version: 8b65dd5d80844af0cd331a0dd78b026c722452d4

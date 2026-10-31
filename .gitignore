@@ -11,5 +11,11 @@ multiuav_bringup/devices/M300/docker/dji_psdk_config.json
 multiuav_bringup/devices/M300/docker/UserConfig_psdk.txt
 multiuav_bringup/devices/M300/docker/UserConfig_osdk.txt
 multiuav_bringup/devices/M300/docker/UserConfig.txt
+# devices/: TODO lo que hay en cfg/ es local salvo los .example
+devices/*/cfg/*
+!devices/*/cfg/*.example
+
+# Workspaces de desarrollo (container_run.sh dev <distro>)
+ws/
 # Stray "copy" files
 **/*[Cc]opy*.txt

@@ -1,11 +1,11 @@
 # M300 por PSDK (ROS 2 Humble). Origen: ~/work/M300/app_ros2/M300-PSDK-ROS2.yml.
-#   tmuxinator start -p devices/m300/tmuxinator.yml [ns=uav_16] [sys=~/multiUAV_system]
+#   tmuxinator start -p devices/m300/tmuxinator_psdk.yml [ns=uav_16] [sys=~/multiUAV_system]
 <%
 default_ns  = 'uav_16'
 default_sys = '~/multiUAV_system'
 uav_ns  = @settings["ns"]  || default_ns
 sys_dir = @settings["sys"] || default_sys
-run     = "#{sys_dir}/devices/m300/container_run.sh"
+run     = "#{sys_dir}/devices/m300/container_run.sh psdk"
 cfg     = "psdk_params_file_path:=/root/cfg/psdk_params.yaml link_config_file_path:=/root/cfg/link_config.json"
 %>
 
@@ -25,25 +25,31 @@ windows:
   - m300:
       layout: tiled
       panes:
+        # El primer panel crea el contenedor; el resto espera y entra con docker exec (si no, todos hacen docker run).
         - psdk:
             - <%= run %>
             - sleep 10
             - ros2 launch psdk_wrapper wrapper.launch.py namespace:=<%= uav_ns %> <%= cfg %>
         - streaming:
+            - sleep 3
             - <%= run %>
             - sleep 30
             - 'ros2 service call /<%= uav_ns %>/psdk_ros2/camera_setup_streaming psdk_interfaces/srv/CameraSetupStreaming "{payload_index: 1, camera_source: 0, start_stop: true, decoded_output: true}"'
         - camera:
+            - sleep 3
             - <%= run %>
             - sleep 35
             - ros2 launch muav_psdk_offboard rtsp_bridge.launch.py namespace:=<%= uav_ns %>
         - notify:
+            - sleep 3
             - <%= run %>
             - sleep 35
             - ros2 launch muav_psdk_offboard mission_notifier.launch.py namespace:=<%= uav_ns %>
         - download:
+            - sleep 3
             - <%= run %>
             - sleep 35
             - ros2 launch muav_psdk_offboard downloader.launch.py namespace:=<%= uav_ns %>
         - shell:
+            - sleep 3
             - <%= run %>

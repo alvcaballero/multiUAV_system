@@ -1,0 +1,53 @@
+# M300 por OSDK (ROS 1 Noetic). Origen: ~/work/M300/app_ros1/M300-RosRTSP.yml.
+#   MUAV_HOSTS=<gcs> tmuxinator start -p devices/m300/tmuxinator_osdk.yml [ns=uav_14] [mode=real|sim] [sys=~/multiUAV_system]
+# MUAV_HOSTS: el/los GCS para el multimaster (antes, escritos en onboard_dji/launch/multimaster-noetic.launch).
+# El vídeo (simple_vs + ros_rtsp) ya lo lanza run_M300-rtsp.launch.
+<%
+default_ns  = 'uav_14'
+default_sys = '~/multiUAV_system'
+uav_ns  = @settings["ns"]  || default_ns
+sys_dir = @settings["sys"] || default_sys
+config_cmd = @settings["mode"] == 'real' ? 'M300-real' : 'M300-sim-on'
+run = "#{sys_dir}/devices/m300/container_run.sh osdk"
+%>
+
+name: m300_osdk
+root: ~/
+
+on_project_exit: docker stop m300_osdk && tmux kill-session -t m300_osdk
+
+on_project_first_start:
+  - 'echo "M300 OSDK  ns: <%= uav_ns %>  modo: <%= config_cmd %>  GCS (MUAV_HOSTS): $MUAV_HOSTS"'
+  <% if @args[0] == "-h" %>
+  - 'echo "Uso: ns=<namespace> (default <%= default_ns %>)  mode=real|sim (default sim)  sys=<repo> (default <%= default_sys %>)"'
+  - exit
+  <% end %>
+
+windows:
+  - m300:
+      layout: tiled
+      panes:
+        # Un solo master: lo levanta este panel; el resto espera a que exista.
+        - roscore:
+            - <%= run %>
+            - roscore
+        - config:
+            - sleep 3
+            - <%= run %>
+            - sleep 2
+            - <%= config_cmd %>
+            - sleep 20
+            - 'rosservice call /<%= uav_ns %>/setup_camera_stream "{cameraType: 1, start: 1}"'
+        - mission:
+            - sleep 3
+            - <%= run %>
+            - sleep 10
+            - roslaunch onboard_dji run_M300-rtsp.launch uav_id:=<%= uav_ns %>
+        - multimaster:
+            - sleep 3
+            - <%= run %>
+            - sleep 5
+            - roslaunch /opt/muav/multimaster.launch
+        - shell:
+            - sleep 3
+            - <%= run %>

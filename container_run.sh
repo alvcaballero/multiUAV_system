@@ -27,7 +27,9 @@ IMAGE="muav/$TARGET:$DISTRO"
 
 if [ "$TARGET" = bridge ]; then
     # --env VAR sin valor: pasa la del host solo si está definida. MUAV_HOSTS: hosts del multimaster (noetic).
-    exec docker run --rm -it --name "muav_bridge_$DISTRO" --network host \
+    # --ipc host: Fast-DDS usa memoria compartida con los procesos del MISMO host (dev, un dron simulado); con IPC
+    # separado se descubren pero no reciben datos.
+    exec docker run --rm -it --name "muav_bridge_$DISTRO" --network host --ipc host \
         --env MUAV_HOSTS --env ROS_MASTER_URI --env ROS_HOSTNAME --env ROS_IP --env ROS_DOMAIN_ID \
         "$IMAGE"
 fi

@@ -8,6 +8,9 @@ if [ -n "${ZSH_VERSION:-}" ]; then _muav_sh=zsh; else _muav_sh=bash; fi
 
 source "/opt/ros/${ROS_DISTRO}/setup.${_muav_sh}"
 
+# Variables del entorno de desarrollo (PX4_DIR, GZ_*): solo existe en dev. Exports POSIX: valen en bash y zsh.
+if [ -f /opt/muav/dev_env.sh ]; then source /opt/muav/dev_env.sh; fi
+
 for ws in /opt/muav/msgs /opt/muav/tools ${MUAV_WS:-} /ws; do
     if [ -f "$ws/install/setup.${_muav_sh}" ]; then
         source "$ws/install/setup.${_muav_sh}"

@@ -1,0 +1,25 @@
+# Punto de partida del workspace de desarrollo Humble (PSDK: psdk_ros2 es solo Humble). Clones PROPIOS del
+# contenedor, independientes de ~/ros2_px4_ws (Jazzy nativo): se sincronizan por git (push/pull), no por disco.
+#   vcs import ws/humble/src < images/dev/humble.repos
+#   ./container_run.sh dev humble      # dentro: /opt/muav/ws_rosdep.sh && colcon build --symlink-install
+# Fijado por COMMIT (lo verificado); para trabajar, `git switch <rama>` en cada repo.
+# El resto del entorno de px4_ros2_docker (aerostack2, px4-ros2-interface-lib…) se agrega a mano si hace falta.
+repositories:
+  # psdk_interfaces + psdk_wrapper: el MISMO commit que el contrato (images/msgs/humble.repos) y el M300. Al
+  # compilarlo en /ws, psdk_interfaces de /ws hace overlay del contrato: lo que cambies se ve primero acá.
+  psdk_ros2:
+    type: git
+    url: https://github.com/arpoma16/psdk_ros2.git
+    version: 8b65dd5d80844af0cd331a0dd78b026c722452d4   # dev/integration
+
+  # Nodos a bordo del M300 por PSDK: el mismo commit que devices/m300/humble.repos.
+  MUAV_psdk_offboard:
+    type: git
+    url: https://github.com/arpoma16/MUAV_psdk_offboard.git
+    version: bb5c0744181e7a28f01dd9fcc99e0f40c61e1ec6   # main
+
+  # Simulación del M300/PSDK en Gazebo (Harmonic en dev:humble).
+  MUAV_psdk_gz:
+    type: git
+    url: https://github.com/arpoma16/MUAV_psdk_gz.git
+    version: 777cb8aba03a0087d786b97a3a3e39cd37875c73   # main

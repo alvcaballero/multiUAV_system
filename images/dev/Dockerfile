@@ -1,17 +1,15 @@
 # Desarrollo: mismos mensajes que producción + herramientas + bridge dentro (decisión 13).
-# El código se monta en /ws desde ws/<distro> (container_run.sh dev <distro>): se edita en el host, se compila aquí.
-#   docker build -f images/dev/Dockerfile --build-arg ROS_DISTRO=humble -t muav/dev:humble .
-#   images/build.sh noetic dev
+# El workspace (src, build, install, log) vive en el HOST y se monta en /ws (container_run.sh dev <distro> o el
+# devcontainer): se edita en el host, se compila aquí.
+#   images/build.sh <distro> [dev]       (genera también .devcontainer/<distro>/devcontainer.json)
 #
-# noetic además trae lo necesario para compilar el código de los drones ROS 1 en /ws y simular PX4:
-#   - Onboard-SDK instalado (dji_osdk_ros COMPLETO se puede compilar en /ws; /opt/muav/msgs lo trae solo-interfaces)
-#   - mavros, multimaster, GStreamer RTSP, libusb/ffmpeg (lo que no declaran los package.xml)
-#   - PX4 v1.14.4 SITL + Gazebo 11 compilado en /opt/px4 (WITH_PX4_SIM=false para no incluirlo: ~5 GB y ~30 min)
-#     Antes: docker/Dockerfile.sim + initDev.sim.sh, clonado y compilado A MANO en el volumen.
-#
-# jazzy además trae lo necesario para simular un dron PX4 ROS 2 (devices/px4_ros2):
-#   - Micro-XRCE-DDS Agent en /opt/muav/tools, de la MISMA línea de devices/px4_ros2/jazzy.repos
-#   - PX4 SITL + Gazebo Harmonic + ros_gz en /opt/px4: el PX4 del contrato (devices/px4_ros2/px4.env), no PX4_VERSION
+# Por distro, además del contrato y rosbridge:
+#   noetic  Onboard-SDK (dji_osdk_ros completo en /ws), mavros, multimaster, GStreamer RTSP; PX4 v1.14.4 + Gazebo 11.
+#   humble  = ~/work/px4_ros2_docker (el entorno Humble de referencia), fijado por versión: Gazebo Harmonic +
+#           ros_gzharmonic, PX4 v1.15.4, Agent XRCE, PX4-gazebo-models, mavlink-router, numpy<2. Para PSDK
+#           (psdk_ros2 es solo Humble) y PX4 1.15.
+#   jazzy   Gazebo Harmonic + ros_gz, PX4 del contrato (devices/px4_ros2/px4.env), Agent XRCE.
+# PX4 con código completo en /opt/px4/PX4-Autopilot (WITH_PX4_SIM=false para no incluirlo: varios GB, ~30 min).
 ARG ROS_DISTRO=humble
 ARG BASE_IMAGE=muav/msgs:${ROS_DISTRO}
 FROM ${BASE_IMAGE}
@@ -19,14 +17,19 @@ FROM ${BASE_IMAGE}
 ARG ROS_DISTRO
 ARG DEBIAN_FRONTEND=noninteractive
 ARG WITH_PX4_SIM=true
-ARG PX4_VERSION=v1.14.4
 # Onboard-SDK: el mismo commit que los drones OSDK.
 ARG OSDK_VERSION=118e2825a347499efb8ed253146552c5b9b10779
+# Lo que px4_ros2_docker tenía por rama o sin fijar.
+ARG PX4_GZ_MODELS_COMMIT=e05f4312d3f28aa621157610584a4870406cb6d3
+ARG MAVLINK_ROUTER_VERSION=v4
 
 # Qt y Gazebo (GUI) necesitan un XDG_RUNTIME_DIR propio con 0700; sin él avisan y a veces la GUI no arranca. En la
 # imagen y no en container_run.sh: así lo tienen igual la terminal y el devcontainer.
 ENV XDG_RUNTIME_DIR=/tmp/runtime-root
 RUN mkdir -p -m 0700 /tmp/runtime-root
+
+# Variables del entorno de desarrollo (PX4_DIR, GZ_*): las carga muav_env.sh en bash y en zsh. Nada en .bashrc.
+RUN mkdir -p /opt/muav && : > /opt/muav/dev_env.sh
 
 # Común a todas las distros
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -37,7 +40,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         tmux \
     && rm -rf /var/lib/apt/lists/*
 
-# Por distro: ros-dev-tools solo existe en ROS 2.
+# Por distro. ROS 2: ros-dev-tools + lo que traía px4_ros2_docker (Qt xcb para las GUIs, transporte de imagen ffmpeg,
+# geographiclib, GStreamer para las cámaras de gz).
 RUN apt-get update \
     && if [ "$ROS_DISTRO" = noetic ]; then \
         apt-get install -y --no-install-recommends \
@@ -59,7 +63,20 @@ RUN apt-get update \
             gstreamer1.0-rtsp \
             gstreamer1.0-tools; \
        else \
-        apt-get install -y --no-install-recommends ros-dev-tools; \
+        apt-get install -y --no-install-recommends \
+            ros-dev-tools \
+            ros-${ROS_DISTRO}-ffmpeg-image-transport \
+            python3-geographiclib \
+            curl \
+            libxcb-xinerama0 \
+            libxkbcommon-x11-0 \
+            libxcb-cursor-dev \
+            gstreamer1.0-plugins-base \
+            gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-bad \
+            gstreamer1.0-plugins-ugly \
+            gstreamer1.0-libav \
+            gstreamer1.0-gl; \
        fi \
     && rm -rf /var/lib/apt/lists/*
 
@@ -70,48 +87,60 @@ RUN if [ "$ROS_DISTRO" = noetic ]; then \
         && /opt/ros/noetic/lib/mavros/install_geographiclib_datasets.sh; \
     fi
 
-# noetic: PX4 SITL + Gazebo 11. Tools/setup/ubuntu.sh es el script oficial de PX4: en focal instala Gazebo 11
-# (repo OSRF) y las deps de Python. --no-nuttx: sin toolchain ARM (no hace falta para SITL).
-# DONT_RUN=1: compila sin abrir Gazebo (no hay display en el build).
-RUN if [ "$ROS_DISTRO" = noetic ] && [ "$WITH_PX4_SIM" = true ]; then \
-        git clone --recurse-submodules -j8 --branch ${PX4_VERSION} \
-            https://github.com/PX4/PX4-Autopilot.git /opt/px4/PX4-Autopilot \
-        && bash /opt/px4/PX4-Autopilot/Tools/setup/ubuntu.sh --no-nuttx \
-        && rm -rf /var/lib/apt/lists/* \
-        && cd /opt/px4/PX4-Autopilot \
-        && DONT_RUN=1 make px4_sitl_default gazebo-classic \
-        && echo 'export PX4_DIR=/opt/px4/PX4-Autopilot' >> /root/.bashrc; \
+# Gazebo ROS 2. humble: Harmonic NO es el par por defecto (ros-humble-ros-gz es Fortress): gz-harmonic y
+# ros-humble-ros-gzharmonic salen del repo OSRF (verificado: ninguno está en el repo de ROS). jazzy: Harmonic es el
+# par por defecto. MUAV_psdk_gz compila con Fortress o Harmonic (elige Harmonic si encuentra gz-common5).
+RUN apt-get update \
+    && case "$ROS_DISTRO" in \
+        humble) \
+            curl -fsSL https://packages.osrfoundation.org/gazebo.gpg \
+                -o /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg \
+            && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] https://packages.osrfoundation.org/gazebo/ubuntu-stable $(. /etc/os-release && echo $UBUNTU_CODENAME) main" \
+                > /etc/apt/sources.list.d/gazebo-stable.list \
+            && apt-get update \
+            && apt-get install -y --no-install-recommends gz-harmonic ros-humble-ros-gzharmonic ;; \
+        jazzy) apt-get install -y --no-install-recommends ros-jazzy-ros-gz ;; \
+       esac \
+    && rm -rf /var/lib/apt/lists/*
+
+# Agent XRCE-DDS (ROS 2): la versión de devices/px4_ros2/agent.repos, la misma que el dron.
+COPY devices/px4_ros2/agent.repos images/dev/install_agent.sh /opt/muav/px4/
+RUN if [ "$ROS_DISTRO" != noetic ]; then \
+        bash /opt/muav/px4/install_agent.sh "$ROS_DISTRO" /opt/muav/px4/agent.repos; \
     fi
 
-# Dispositivos ROS 2 con Agent XRCE-DDS (hoy: jazzy). Se importa el .repos del dispositivo pero se compila SOLO el
-# Agent: la versión se declara una vez. El resto (offboard, mqtt_client) se desarrolla en /ws.
-# /opt/muav/tools es una capa de muav_env.sh (entre el contrato y los workspaces).
-COPY devices/px4_ros2/*.repos /tmp/px4_ros2/
-RUN if [ -f "/tmp/px4_ros2/${ROS_DISTRO}.repos" ]; then \
-        mkdir -p /opt/muav/tools/src \
-        && cd /opt/muav/tools \
-        && vcs import --input "/tmp/px4_ros2/${ROS_DISTRO}.repos" src \
-        && . /opt/ros/${ROS_DISTRO}/setup.sh \
-        && colcon build --merge-install --packages-select microxrcedds_agent \
-            --cmake-args -DCMAKE_BUILD_TYPE=Release \
-        && rm -rf src build log; \
+# PX4 SITL (versión por distro: ver install_px4_sitl.sh).
+COPY devices/px4_ros2/px4.env images/dev/install_px4_sitl.sh /opt/muav/px4/
+RUN if [ "$WITH_PX4_SIM" = true ]; then \
+        bash /opt/muav/px4/install_px4_sitl.sh "$ROS_DISTRO" /opt/muav/px4/px4.env; \
     fi
 
-# jazzy: PX4 SITL + Gazebo Harmonic. El commit del contrato (px4.env): los mensajes del SITL son los del bridge, sin
-# translation node. Commit, no tag → clone completo + checkout (PX4 necesita los tags para su versión).
-# ubuntu.sh en 24.04 instala gz-harmonic (repo OSRF). ros_gz: puente gz ↔ ROS 2 (cámaras, mundos del GCS).
-COPY devices/px4_ros2/px4.env /opt/muav/px4/px4.env
-RUN if [ "$ROS_DISTRO" = jazzy ] && [ "$WITH_PX4_SIM" = true ]; then \
-        . /opt/muav/px4/px4.env \
-        && git clone "$PX4_REPO" /opt/px4/PX4-Autopilot \
-        && cd /opt/px4/PX4-Autopilot \
-        && git checkout -q "$PX4_COMMIT" \
-        && git submodule update --init --recursive -j8 \
-        && bash Tools/setup/ubuntu.sh --no-nuttx \
-        && apt-get install -y --no-install-recommends ros-jazzy-ros-gz \
+# humble, como px4_ros2_docker:
+#   - numpy<2 y opencv-python<4.10 DESPUÉS de PX4 (sus requirements.txt pueden subir numpy y romper cv_bridge).
+#   - PX4-gazebo-models: los mundos y modelos que usan sus tmuxinator. GZ_SIM_RESOURCE_PATH se AGREGA, no se pisa.
+#   - GZ_PARTITION propia: el gz del contenedor no se mezcla con otro gz de la red.
+RUN if [ "$ROS_DISTRO" = humble ]; then \
+        pip3 uninstall -y numpy opencv-python || true; \
+        pip3 install --no-cache-dir 'numpy<2' 'opencv-python<4.10' \
+        && git clone https://github.com/PX4/PX4-gazebo-models.git /opt/px4/PX4-gazebo-models \
+        && git -C /opt/px4/PX4-gazebo-models checkout -q ${PX4_GZ_MODELS_COMMIT} \
+        && { echo 'export GZ_SIM_RESOURCE_PATH=/opt/px4/PX4-gazebo-models/models${GZ_SIM_RESOURCE_PATH:+:$GZ_SIM_RESOURCE_PATH}'; \
+             echo 'export GZ_SIM_SERVER_CONFIG_PATH=/opt/px4/PX4-gazebo-models/server.config'; \
+             echo 'export GZ_PARTITION=docker_sim_harmonic'; } >> /opt/muav/dev_env.sh; \
+    fi
+
+# mavlink-router (ROS 2, como px4_ros2_docker): reparte el MAVLink del SITL o del autopiloto (QGC, GCS, scripts).
+RUN if [ "$ROS_DISTRO" != noetic ]; then \
+        apt-get update \
+        && apt-get install -y --no-install-recommends meson ninja-build pkg-config systemd \
         && rm -rf /var/lib/apt/lists/* \
-        && DONT_RUN=1 make px4_sitl \
-        && echo 'export PX4_DIR=/opt/px4/PX4-Autopilot' >> /root/.bashrc; \
+        && git clone --branch ${MAVLINK_ROUTER_VERSION} --recurse-submodules \
+            https://github.com/mavlink-router/mavlink-router.git /tmp/mavlink-router \
+        && cd /tmp/mavlink-router \
+        && meson setup build . \
+        && ninja -C build \
+        && ninja -C build install \
+        && rm -rf /tmp/mavlink-router; \
     fi
 
 # Bridge dentro (decisión 13): los mismos archivos que bridge:<distro>.

@@ -1,0 +1,56 @@
+# VTOL: PX4 por mavros (ROS 1 Noetic, Raspberry Pi). Origen: multiuav_bringup/devices/vtol/px4-real-cam.yml.
+#   MUAV_HOSTS=<gcs> tmuxinator start -p devices/vtol/tmuxinator.yml [id=3] [cam=/dev/video5] [sys=~/multiUAV_system]
+# id: NÚMERO del dron (atlas.launch arma el namespace uav_<id>).
+# MUAV_HOSTS: el/los GCS para el multimaster (antes, escritos en onboard_px4/launch/multimaster.launch).
+# mediamtx corre en el HOST (Docker), fijado por digest: índice multi-arch que incluye linux/arm64.
+# No portados: px4-real.yml (sin cámara; es este sin los dos paneles de vídeo) y px4-vtol-sim.yaml (sim → dev:noetic).
+<%
+default_id  = '3'
+default_cam = '/dev/video5'
+default_sys = '~/multiUAV_system'
+uav_id  = @settings["id"]  || default_id
+cam     = @settings["cam"] || default_cam
+sys_dir = @settings["sys"] || default_sys
+run = "#{sys_dir}/devices/vtol/container_run.sh"
+mediamtx = 'bluenviron/mediamtx@sha256:3c38848711023b3b6db4264b46c12c2e69807c137b9fd169a505924a94e98f7b'
+%>
+
+name: vtol
+root: ~/
+
+on_project_exit: docker stop vtol vtol_mediamtx; tmux kill-session -t vtol
+
+on_project_first_start:
+  - 'echo "VTOL  ns: uav_<%= uav_id %>  cámara: <%= cam %>  GCS (MUAV_HOSTS): $MUAV_HOSTS"'
+  <% if @args[0] == "-h" %>
+  - 'echo "Uso: id=<número> (default <%= default_id %>)  cam=<dispositivo> (default <%= default_cam %>)  sys=<repo> (default <%= default_sys %>)"'
+  - exit
+  <% end %>
+
+windows:
+  - vtol:
+      layout: tiled
+      panes:
+        # Un solo master: lo levanta este panel. El primer panel crea el contenedor; el resto entra con docker exec.
+        - roscore:
+            - <%= run %>
+            - roscore
+        - main:
+            - sleep 3
+            - <%= run %>
+            - sleep 2
+            - roslaunch onboard_px4 atlas.launch uav_id:=<%= uav_id %>
+        - multimaster:
+            - sleep 3
+            - <%= run %>
+            - sleep 5
+            - roslaunch /opt/muav/multimaster.launch
+        # Servidor RTSP en el host. Primero, para que exista cuando la cámara publique.
+        - server:
+            - docker run --rm -it --name vtol_mediamtx --network host <%= mediamtx %>
+        # Pipeline tal cual el tmuxinator viejo (el rtpjpegpay final suelto incluido).
+        - video-stream:
+            - sleep 3
+            - <%= run %>
+            - sleep 5
+            - gst-launch-1.0 v4l2src device=<%= cam %> ! video/x-raw,width=640,height=480 ! videoconvert ! x264enc bframes=0 tune=zerolatency bitrate=500 speed-preset=superfast ! h264parse ! rtspclientsink location=rtsp://0.0.0.0:8554/video0 rtpjpegpay name=pj

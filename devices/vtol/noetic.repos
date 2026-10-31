@@ -1,0 +1,26 @@
+# Paquetes PROPIOS del VTOL (PX4 por mavros) en ROS 1 Noetic. Se importan junto al contrato images/msgs/noetic.repos.
+# Relevado de multiuav_bringup/devices/vtol (px4-real-cam.yml) y docker/initDev*.sh. Versiones fijadas por COMMIT.
+#
+# NO están aquí, a propósito:
+#   - aerialcore_common (lo pide onboard_px4 main): viene del CONTRATO.
+#   - mavros, geodesy: apt (rosdep). multimaster_fkie: apt 1.3.2, igual que bridge:noetic.
+repositories:
+  # px4_mission_node + atlas.launch. Rama main (aerialcore_common), NO feature/wirispro: esa depende de
+  # wirispro_manager, cuyo repo (miggilcas/wirispro_manager) es privado o no existe. Sin el servicio de la WIRIS Pro.
+  onboard_px4:
+    type: git
+    url: https://github.com/alvcaballero/onboard_px4.git
+    version: 89d6c790ec8154f78ee943ba4b893ac7893454a0   # main
+
+  # px4_bringup (spawn_robot.launch → run_mavros.py). Ningún script viejo lo instalaba: estaba a mano en el dron.
+  # El repo trae más paquetes (backends de UAL, teleop): solo se compila px4_bringup.
+  grvc-ual:
+    type: git
+    url: https://github.com/grvcTeam/grvc-ual.git
+    version: 95a9e7b6d8fe386d55aee5a9288c695fda5caf43   # noetic
+
+  # mission_lib. Fork arpoma16 (el que clonaba initDev); el .repos del GCS apunta a grvcTeam.
+  grvc-utils:
+    type: git
+    url: https://github.com/arpoma16/grvc-utils.git
+    version: 122ff385ea86c7e1ede54d34f47cda644634b859   # noetic

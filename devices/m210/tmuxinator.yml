@@ -49,7 +49,7 @@ windows:
             - sleep 3
             - <%= run %>
             - sleep 5
-            - roslaunch /opt/muav/multimaster.launch
+            - /opt/muav/multimaster_watch.sh
         - resize:
             - sleep 3
             - <%= run %>

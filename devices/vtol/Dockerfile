@@ -52,5 +52,7 @@ ENV MUAV_WS=/root/app_ws
 
 # Multimaster del dron: el mismo launch que bridge:noetic, con los hosts del GCS por MUAV_HOSTS.
 COPY images/bridge/multimaster.launch /opt/muav/multimaster.launch
+# Con watchdog: espera al GCS y relanza si no lo descubre (devices/common/multimaster_watch.sh).
+COPY devices/common/multimaster_watch.sh /opt/muav/multimaster_watch.sh
 
 WORKDIR /root/app_ws

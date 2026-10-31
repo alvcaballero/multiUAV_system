@@ -47,7 +47,7 @@ windows:
             - sleep 3
             - <%= run %>
             - sleep 5
-            - roslaunch /opt/muav/multimaster.launch
+            - /opt/muav/multimaster_watch.sh
         - shell:
             - sleep 3
             - <%= run %>

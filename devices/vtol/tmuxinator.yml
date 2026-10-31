@@ -44,7 +44,7 @@ windows:
             - sleep 3
             - <%= run %>
             - sleep 5
-            - roslaunch /opt/muav/multimaster.launch
+            - /opt/muav/multimaster_watch.sh
         # Servidor RTSP en el host. Primero, para que exista cuando la cámara publique.
         - server:
             - docker run --rm -it --name vtol_mediamtx --network host <%= mediamtx %>

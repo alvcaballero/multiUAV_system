@@ -13,16 +13,18 @@ ENV LANG=C.UTF-8 \
 
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
+# colcon en TODAS las distros: compila también paquetes catkin (colcon-ros), así msgs/bridge/dev usan los mismos
+# comandos en noetic, humble y jazzy. catkin-tools queda en noetic para quien desarrolle con `catkin build`.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         nano \
+        python3-colcon-common-extensions \
         python3-pip \
         python3-vcstool \
         tzdata \
-    && case "$ROS_DISTRO" in \
-        noetic) apt-get install -y --no-install-recommends python3-catkin-tools ;; \
-        *)      apt-get install -y --no-install-recommends python3-colcon-common-extensions ;; \
-       esac \
+    && if [ "$ROS_DISTRO" = noetic ]; then \
+        apt-get install -y --no-install-recommends python3-catkin-tools; \
+       fi \
     && rm -rf /var/lib/apt/lists/*
 
 # Un único punto que carga ROS + workspace de mensajes + workspace montado (/ws).

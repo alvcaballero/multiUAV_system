@@ -2,9 +2,7 @@
 # (M300 OSDK, M210, M600, PX4 mavros). Un mensaje nuevo se declara AQUÍ y solo aquí.
 # Versiones fijadas por COMMIT, nunca por rama (decisión 12). El comentario dice de qué rama sale cada commit.
 #   vcs import ws/noetic/src < images/msgs/noetic.repos
-#
-# R2 PENDIENTE en images/msgs/Dockerfile: hoy es solo ROS 2, y su MSGS_REGEX ('.*_(msgs|interfaces)$') deja fuera a
-# aerialcore_common y a dji_osdk_ros. Este último va con -DONBOARD_SDK_ROS_ONLY_INTERFACES=ON (decisión 7).
+#   images/build.sh noetic msgs     (images/msgs/Dockerfile: MSGS_REGEX y MSGS_CMAKE_ARGS cubren estos paquetes)
 repositories:
   # Mensajes del GCS en ROS 1 (rama ros1, HUÉRFANA: no comparte historia con main, que es ROS 2). Dos paquetes con el
   # mismo contenido, en transición (decisión 8):

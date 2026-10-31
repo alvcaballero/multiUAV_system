@@ -222,6 +222,27 @@ Estado (2026-10-31): pasos 1-4 escritos, **sin construir ni probar**. Falta el 5
     contra el launch real.
   - `container_run.sh <psdk|osdk>` y `tmuxinator_{psdk,osdk}.yml`. Arreglada la carrera de `docker run` entre
     paneles: solo el primero crea el contenedor. En OSDK, `roscore` va en su propio panel.
+- **R2: M210 escrito (2026-10-31), sin compilar.** Raspberry Pi (arm64, sin GPU), todos en Noetic: **Melodic queda
+  fuera** (`dji_M210_melodic.yaml` del GCS es legado). Antes corría nativo; ahora en contenedor sobre
+  `muav/base:noetic` (multi-arch, apt de Noetic para focal arm64: no hace falta ROS desde fuentes).
+  - `noetic.repos`: `onboard_dji` rama `M210` (`bccfda0`, main + 60 commits sin mergear), `simple_vs` **main**
+    (`d9957ee`, sin CUDA; `cuda` solo cambia `video_resize.cpp`), `ros_rtsp`. Multimaster por apt.
+  - `atlas.launch` y `atlas-noetic.launch` son funcionalmente iguales: el segundo solo tiene credenciales escritas.
+    Se usa `atlas.launch` + `entrypoint_osdk.sh`, igual que el M300.
+  - Común con el M300 en `devices/common/osdk/`: `install_osdk.sh` (Onboard-SDK `118e2825`) y `entrypoint_osdk.sh`,
+    que ahora busca el launch con `rospack find` (probado con credenciales falsas).
+  - Bug del tmuxinator viejo: pasaba `uav_id:=uav_2` a `video_resize.launch` (main), que arma `uav_$(arg uav_id)`
+    → `uav_uav_2`. Ahora se pasa el número (`id=2`) a `atlas.launch` y al resize.
+  - `config/ros_rtsp_stream_setup.yaml` DERIVADO del M300: la config real vive solo en la Pi. A verificar.
+  - Ojo: el `.bashrc` viejo del M210 usa rutas `/home/nvidia/...` (de Jetson); `devices/init` usa `/home/ubuntu`.
+  - Verificado con los `.repos` reales: se compilan `aerialcore_common dji_osdk_ros onboard_dji ros_rtsp simple_vs`
+    y rosdep resuelve todas las claves.
+- **rosdep y Noetic EOL**: `rosdep update` sin `--include-eol-distros` BORRA Noetic del caché, y deja de resolver
+  claves (`nmea_msgs`, `theora_image_transport`; verificado). `images/base` actualiza con la opción y deja el alias
+  `rosdep-update`. Los Dockerfiles no llaman a `rosdep update`: usan el caché de la imagen, que funciona.
+- **SEGURIDAD: SEGUNDO par de credenciales DJI expuesto.** `alvcaballero/onboard_dji` (público), rama `M210`,
+  `launch/atlas-noetic.launch`: `app_id` + `enc_key` de OTRA app (comparado por hash, distinta de la de abajo).
+  Rotar también.
 - **SEGURIDAD: credenciales DJI en un repo público.** `miggilcas/Onboard-SDK-ROS` (`launch/dji_vehicle_node.launch`,
   incluido `d7ee4b4`) tiene un `app_id` y un `enc_key` escritos. Hay que rotarlos en el portal DJI y avisar al
   dueño del repo. Siguen en la historia de git aunque se borren del archivo. Este repo no copia ese archivo y el

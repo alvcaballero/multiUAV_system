@@ -1,0 +1,62 @@
+# M210 por OSDK (ROS 1 Noetic, Raspberry Pi). Origen: multiuav_bringup/devices/M210/M210-RosRTCP.yml.
+#   MUAV_HOSTS=<gcs> tmuxinator start -p devices/m210/tmuxinator.yml [id=2] [mode=real|sim] [sys=~/multiUAV_system]
+# id: NÚMERO del dron. atlas.launch y video_resize.launch (simple_vs main) arman el namespace como uav_<id>: pasarles
+#     "uav_2" daba uav_uav_2 (bug del tmuxinator viejo en el resize).
+# MUAV_HOSTS: el/los GCS para el multimaster (antes, escritos en onboard_dji/launch/multimaster-noetic.launch).
+# No portados: M210-RoswebSocket.yml (video_stream_dji) y M210-Webrtcenv.yml (mediamtx + gstreamer-ros.py).
+<%
+default_id  = '2'
+default_sys = '~/multiUAV_system'
+uav_id  = @settings["id"]  || default_id
+sys_dir = @settings["sys"] || default_sys
+config_cmd = @settings["mode"] == 'real' ? 'M210-real' : 'M210-sim-on'
+run = "#{sys_dir}/devices/m210/container_run.sh"
+%>
+
+name: m210_osdk
+root: ~/
+
+on_project_exit: docker stop m210_osdk && tmux kill-session -t m210_osdk
+
+on_project_first_start:
+  - 'echo "M210 OSDK  ns: uav_<%= uav_id %>  modo: <%= config_cmd %>  GCS (MUAV_HOSTS): $MUAV_HOSTS"'
+  <% if @args[0] == "-h" %>
+  - 'echo "Uso: id=<número> (default <%= default_id %>)  mode=real|sim (default sim)  sys=<repo> (default <%= default_sys %>)"'
+  - exit
+  <% end %>
+
+windows:
+  - m210:
+      layout: tiled
+      panes:
+        # Un solo master: lo levanta este panel. El primer panel crea el contenedor; el resto entra con docker exec.
+        - roscore:
+            - <%= run %>
+            - roscore
+        - config:
+            - sleep 3
+            - <%= run %>
+            - sleep 2
+            - <%= config_cmd %>
+            - sleep 20
+            - 'rosservice call /uav_<%= uav_id %>/setup_camera_stream "{cameraType: 1, start: 1}"'
+        - mission:
+            - sleep 3
+            - <%= run %>
+            - sleep 10
+            - roslaunch onboard_dji atlas.launch uav_id:=<%= uav_id %>
+        - multimaster:
+            - sleep 3
+            - <%= run %>
+            - sleep 5
+            - roslaunch /opt/muav/multimaster.launch
+        - resize:
+            - sleep 3
+            - <%= run %>
+            - sleep 30
+            - roslaunch simple_vs video_resize.launch uav_id:=<%= uav_id %>
+        - rtsp:
+            - sleep 3
+            - <%= run %>
+            - sleep 30
+            - roslaunch ros_rtsp rtsp_streams.launch

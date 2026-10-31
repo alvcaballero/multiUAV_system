@@ -1,0 +1,26 @@
+# Paquetes PROPIOS del M210 en ROS 1 Noetic (OSDK). Se importan junto al contrato images/msgs/noetic.repos.
+# Relevado de multiuav_bringup/devices/M210 (tmuxinator M210-RosRTCP.yml) y docker/initDev*.sh.
+# Versiones fijadas por COMMIT (decisión 12).
+#
+# NO están aquí, a propósito:
+#   - Onboard-SDK-ROS (dji_osdk_ros) y aerialcore_common/multiuav_interfaces: vienen del CONTRATO.
+#   - Onboard-SDK: no es catkin; lo instala devices/common/osdk/install_osdk.sh (commit en el Dockerfile).
+#   - multimaster_fkie: en la Pi hay apt de Noetic (Ubuntu 20.04), y apt trae la 1.3.2, igual que bridge:noetic.
+repositories:
+  # Misión (dji_mission_node) + atlas.launch. La rama M210 es main + 60 commits, no está mergeada en main.
+  onboard_dji:
+    type: git
+    url: https://github.com/alvcaballero/onboard_dji.git
+    version: bccfda0eff580e5f83bbd36748aab55aa0f47245   # M210
+
+  # Vídeo: resize (simple_vs) → RTSP (ros_rtsp). simple_vs en main, NO en cuda: la Raspberry Pi no tiene GPU
+  # (la rama cuda solo cambia video_resize.cpp para usar cv::cuda).
+  simple_vs:
+    type: git
+    url: https://github.com/miggilcas/simple_vs.git
+    version: d9957ee2a13f2e35da916212b761a13f5c31136c   # main
+
+  ros_rtsp:
+    type: git
+    url: https://github.com/CircusMonkey/ros_rtsp.git
+    version: 4ccce0332d242440f7115320e095d739f137092b   # master

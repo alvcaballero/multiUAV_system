@@ -1,0 +1,12 @@
+# Config de ros_rtsp del M210. DERIVADA, A VERIFICAR: la real vive solo en la Pi (no está en ningún repo). Es la del
+# M300 (devices/m300/config/) con el namespace del M210: simple_vs publica <ns>/dji_osdk_ros/main_camera_images_resize.
+# ros_rtsp la lee de $(find ros_rtsp)/config/stream_setup.yaml sin argumento: container_run.sh la monta encima.
+# OJO: namespace uav_2 fijo en el topic. Si el dron usa otro id, cambiarlo aquí.
+port: "8554"
+streams: # Cannot rename - must leave this as is.
+  stream-main-resize:
+    type: topic
+    source: /uav_2/dji_osdk_ros/main_camera_images_resize
+    mountpoint: /main_resize
+    caps: video/x-raw,framerate=10/1,width=608,height=448
+    bitrate: 500

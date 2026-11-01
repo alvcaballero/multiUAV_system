@@ -3,10 +3,18 @@
 Guía para dejar un M300 RTK operando con `psdk_ros2` desde un Jetson Orin Nano. Se hace en este orden: hardware →
 dron (DJI Assistant 2) → host (Jetson) → software → arranque → verificación.
 
-Fuentes: [docs de `psdk_ros2`](https://github.com/arpoma16/psdk_ros2/tree/dev/integration/docs/documentation)
-(GettingStarted: "Hardware connection", "Udev rules"), [DJI: device connection](https://developer.dji.com/onboard-sdk/documentation/quickstart/device-connection.html),
-[DJI: puertos por aeronave](https://developer.dji.com/doc/payload-sdk-tutorial/en/quick-start/drone-port.html).
-Lo marcado **⚠ A COMPLETAR** falta relevarlo en el dron.
+Fuentes (comparadas en el § 9):
+- [DJI: Jetson Nano quick guide](https://developer.dji.com/doc/payload-sdk-tutorial/en/payload-quick-start/quick-guide/jetson-nano.html):
+  la guía oficial que se usó. Se arma con JavaScript y no se pudo leer automáticamente; lo que se cita sale de un
+  resumen de búsqueda y del foro de DJI.
+- [Aerostack2: DJI Matrice PSDK](https://aerostack2.github.io/_03_aerial_platforms/_dji_psdk/index.html) y su repo
+  [`psdk_config_files`](https://github.com/aerostack2/psdk_config_files) (Xavier/Orin NX/AGX).
+- [Docs de `psdk_ros2`](https://github.com/arpoma16/psdk_ros2/tree/dev/integration/docs/documentation)
+  (GettingStarted: "Hardware connection", "Udev rules"), [DJI: device connection](https://developer.dji.com/onboard-sdk/documentation/quickstart/device-connection.html),
+  [DJI: puertos por aeronave](https://developer.dji.com/doc/payload-sdk-tutorial/en/quick-start/drone-port.html),
+  [foro de NVIDIA: USB bulk de PSDK en Jetson](https://forums.developer.nvidia.com/t/dji-psdk-usb-bulk-configuration/296552).
+
+Lo marcado **⚠ A COMPLETAR** o **⚠ A CONFIRMAR** falta relevarlo en el dron.
 
 ## 1. Materiales
 
@@ -22,6 +30,13 @@ Lo marcado **⚠ A COMPLETAR** falta relevarlo en el dron.
 
 ## 2. Conexión
 
+![Conexión del M300 con el Jetson Orin Nano por el OSDK Expansion Module](../img/conexion.svg)
+
+Fotos de referencia (Aerostack2, licencia MIT; con E-Port Development Kit y Jetson AGX/NX, no Orin Nano):
+[E-Port en modo *device*, el que usa el M300](https://aerostack2.github.io/_images/device_mode.jpg) ·
+[conexiones USB en un AGX](https://aerostack2.github.io/_images/agx_connections.jpg) ·
+[conexiones USB en un NX](https://aerostack2.github.io/_images/nx_connections.jpg).
+
 ```
 M300 (puerto OSDK) ══ OSDK Expansion Module
                         ├─ UART (TX, RX, GND · 3,3 V) ── FTDI ──USB──► Jetson  → /dev/ttyUSB0   comandos y telemetría
@@ -32,9 +47,10 @@ M300 (puerto OSDK) ══ OSDK Expansion Module
 
 1. Montar el módulo en el puerto OSDK: **la cara del cable con la costura ("side B") hacia afuera** (DJI).
 2. FTDI a los pines UART del módulo (el RX del módulo recibe lo que transmite el dron) y al USB del Jetson.
-3. USB A-A del módulo al Jetson. En modo PSDK el Jetson actúa como **dispositivo USB** (gadget con dos endpoints
-   bulk), así que el cable va al puerto del Orin que admite modo *device*.
-   ⚠ A COMPLETAR: qué puerto físico del Orin Nano es.
+3. USB del módulo al Jetson. ⚠ A CONFIRMAR: **rol y puerto** (ver § 4, paso 4.g). Aerostack2 (M300 + E-Port) usa
+   el Jetson como **host** por el puerto Type-C que soporta bulk. En el foro de NVIDIA, un Orin Nano funcionó con el
+   E-Port directo a un **USB-A**. `host/set_usb_mode.sh psdk` configura el Jetson como **device** (gadget con
+   `/dev/usb-ffs/bulk1,2`).
 4. Alimentación: XT30 del módulo (24 V, 4 A nominales) → step-down **24 V → 19 V** → Jetson. Nunca los 24 V
    directo al Orin.
 
@@ -56,21 +72,54 @@ M300 (puerto OSDK) ══ OSDK Expansion Module
    WiFi y `sudo netplan apply`. Deja `eth0` en `10.20.0.51/24` y `usb0` en `192.168.42.3/24`.
 3. Hora desde el GCS al arrancar (el Jetson no tiene RTC con batería): `sudo devices/common/boot/install.sh` y poner
    `GCS_HOST` en `/etc/muav/boot.env` (ver `devices/common/README.md`).
-4. **Modo USB PSDK.** La primera vez, preparar los dos scripts que alterna `host/set_usb_mode.sh`:
-   ```bash
-   # backup del script original de L4T (es el modo OSDK)
-   sudo cp /opt/nvidia/l4t-usb-device-mode/nv-l4t-usb-device-mode-start.sh \
-           /opt/nvidia/l4t-usb-device-mode/nv-l4t-usb-device-mode-start-osdk.sh
-   # script de DJI para USB bulk: viene en usb-bulk-configuration-reference.zip (link en las docs de psdk_ros2)
-   sudo cp startup_bulk/psdk-usb-configure.sh \
-           /opt/nvidia/l4t-usb-device-mode/nv-l4t-usb-device-mode-start-psdk.sh
-   ```
-   Dejar el binario `startup_bulk` del mismo zip bajo `/home` (el script lo busca ahí; lo esperado es
-   `~/Desktop/startup_bulk/startup_bulk`). Después, cada vez que se cambie de perfil:
-   ```bash
-   sudo devices/m300/host/set_usb_mode.sh psdk --now    # o sin --now: aplica en el próximo arranque
-   sudo devices/m300/host/set_usb_mode.sh status        # modo, servicio L4T, startup_bulk, endpoints montados
-   ```
+4. **Modo USB PSDK (USB bulk).** La primera vez. Junta la guía de DJI y la de Aerostack2; los pasos c y d son las
+   trampas del Orin.
+
+   a. **Paquete de DJI** (script `psdk-usb-configure.sh` + binario `startup_bulk`), en la ruta que busca
+      `set_usb_mode.sh`:
+      ```bash
+      cd ~ && wget https://terra-1-g.djicdn.com/71a7d383e71a4fb8887a310eb746b47f/psdk/e-port/usb-bulk-configuration-reference.zip \
+        && unzip usb-bulk-configuration-reference.zip -d startup_bulk \
+        && mv startup_bulk/ ~/Desktop/ && chmod +x ~/Desktop/startup_bulk/*
+      ```
+   b. **Módulos del kernel al arrancar** (Aerostack2):
+      ```bash
+      echo -e "configfs\nlibcomposite\nusb_f_fs\ntegra-xudc" | sudo tee -a /etc/modules   # revisar que quede bien
+      ```
+   c. **Nombre del controlador USB (UDC).** Los scripts de DJI y de Aerostack2 buscan `700d0000.xudc` (T210) o
+      `3550000.xudc`; si no lo encuentran, no configuran nada y `/dev/usb-ffs/bulk*` nunca aparece. Un Orin Nano con
+      JetPack 6 tenía **`3550000.usb`** (foro de NVIDIA). Mirá el tuyo y, si difiere, cambialo en el script
+      (Aerostack2 hace lo mismo para el AGX: `sed -i 's/3550000\.xudc/3550000.usb/g' <script>`):
+      ```bash
+      ls /sys/class/udc/
+      ```
+   d. **Ruta de `startup_bulk` dentro del script.** El script la tiene escrita (el de Aerostack2 dice
+      `/home/cvar/Desktop/startup_bulk/startup_bulk`): poné la de este Jetson (`/home/<usuario>/Desktop/startup_bulk/startup_bulk`).
+   e. **Los dos scripts que alterna `host/set_usb_mode.sh`.** Con el servicio de L4T apagado mientras se cambian
+      (Aerostack2):
+      ```bash
+      sudo systemctl disable nv-l4t-usb-device-mode.service
+      # backup del script original de L4T (= modo OSDK)
+      sudo cp /opt/nvidia/l4t-usb-device-mode/nv-l4t-usb-device-mode-start.sh \
+              /opt/nvidia/l4t-usb-device-mode/nv-l4t-usb-device-mode-start-osdk.sh
+      # script de bulk (= modo PSDK), ya corregido en c y d
+      sudo cp ~/Desktop/startup_bulk/psdk-usb-configure.sh \
+              /opt/nvidia/l4t-usb-device-mode/nv-l4t-usb-device-mode-start-psdk.sh
+      sudo systemctl enable /opt/nvidia/l4t-usb-device-mode/nv-l4t-usb-device-mode.service
+      sudo reboot
+      ```
+      Alternativa: el `nv-l4t-usb-device-mode-start.sh` de [`psdk_config_files`](https://github.com/aerostack2/psdk_config_files)
+      (para Xavier/Orin NX/AGX, con bulk + red). Igual hay que revisarle c y d.
+   f. **Cambiar de perfil y verificar**, cada vez:
+      ```bash
+      sudo devices/m300/host/set_usb_mode.sh psdk --now    # o sin --now: aplica en el próximo arranque
+      sudo devices/m300/host/set_usb_mode.sh status        # modo, servicio L4T, startup_bulk, endpoints montados
+      ```
+   g. ⚠ A CONFIRMAR, **rol USB en cada arranque**. Aerostack2, para el M300, pone el Jetson como **host**
+      (`echo host | sudo tee /sys/class/usb_role/usb2-0-role-switch/role`), y al encender el dron debe aparecer
+      `/dev/ttyACM0`. El HAL de USB bulk del Payload-SDK soporta los dos roles: host con libusb y el VID/PID de
+      `link_config.json`, o device con `/dev/usb-ffs/bulkN`. El que usa el M300 lo decide la librería cerrada de DJI.
+      Probar en el dron, y anotar acá el rol, el puerto físico y si existe `ls /sys/class/usb_role/` en el Orin Nano.
 5. Opcional: reglas udev para nombres fijos (`/dev/dji_serial`…). Plantilla en las docs de `psdk_ros2` (sección "Udev
    rules"). ⚠ A COMPLETAR: VID/PID del FTDI que se usa.
 
@@ -119,7 +168,27 @@ A mano: `devices/m300/container_run.sh psdk [restart] [--no-bulk]` (`--no-bulk`:
 | Síntoma | Causa probable |
 |---|---|
 | `/dev/usb-ffs/bulkN no existe` | El Jetson está en modo OSDK: `sudo devices/m300/host/set_usb_mode.sh psdk --now` |
+| Sigue sin existir tras `set_usb_mode psdk` | El script no encontró el UDC (`ls /sys/class/udc/`: `3550000.usb` en vez de `xudc`, § 4.c) |
+| `startup_bulk` no corre (`status`) | Ruta escrita mal dentro del script (§ 4.d), o el binario sin `chmod +x` |
+| No aparece `/dev/ttyACM0` | Cableado o rol USB, no el bulk (respuesta de DJI en su foro): revisar § 4.g |
 | Telemetría sí, cámara no | `startup_bulk` no corre, o se arrancó con `--no-bulk` |
+| Solo funciona `use_only_uart` | Pasa en el foro de NVIDIA con Orin Nano: el bulk no levantó (§ 4.c–g) |
 | El wrapper no inicializa | Credenciales de otra app, o baudrate distinto del de Assistant 2 |
 | No aparece `/dev/ttyUSB0` | FTDI desconectado o sin alimentación |
 | El GCS no ve nada | Otro `ROS_DOMAIN_ID`, otra red, o el GCS usa `bridge:noetic` en vez de `bridge:humble` |
+
+## 9. Comparación de guías: qué aporta cada una
+
+| Tema | DJI (Jetson Nano) | Aerostack2 (Xavier/Orin NX/AGX) | Esta guía |
+|---|---|---|---|
+| Placa | Jetson Nano | Xavier, Orin NX, AGX | **Orin Nano** (ninguna de las dos la cubre exacta) |
+| Kit en el M300 | E-Port Development Kit | E-Port Development Kit en modo *device* | OSDK Expansion Module (o E-Port) |
+| Paquete de bulk | `usb-bulk-configuration-reference.zip` (script + `startup_bulk`) | El mismo zip + su propio script de arranque | El zip; alternativa: el script de Aerostack2 (§ 4.e) |
+| Módulos del kernel | — | `configfs libcomposite usb_f_fs tegra-xudc` en `/etc/modules` | Incluido (§ 4.b) |
+| Nombre del UDC | El script busca `xudc` | `sed` `xudc` ↔ `usb` según la placa | Verificarlo antes de copiar (§ 4.c) |
+| Servicio L4T | Reemplazar el script de arranque | Apagarlo, reemplazar, probar a mano, volver a prenderlo | Igual que Aerostack2, más un backup para volver a OSDK (§ 4.e) |
+| Rol USB en el M300 | Interruptor host/device del E-Port Kit (el resumen dice *host*; el soporte de DJI en el foro, *device*: contradictorio) | Jetson = **host**, E-Port = **device**, `usb_role` en cada arranque | ⚠ A CONFIRMAR (§ 4.g) |
+| `link_select` del M300 | — | `use_uart_and_usb_bulk_device` (M350/M30: red `l4tbr0`) | Igual (`cfg/link_config.json.example`) |
+| Conmutar OSDK ↔ PSDK | — | — | `host/set_usb_mode.sh` |
+| Hardware, alimentación, credenciales, Assistant 2 | Parcial | No lo cubre | §§ 1–3 |
+| Plataforma de alto nivel | — | `as2_platform_dji_psdk` (Aerostack2) | No se usa: el GCS habla con `psdk_wrapper` + `MUAV_psdk_offboard`; por apt arrastra un PSDK que no es el del fork (decisión 14) |

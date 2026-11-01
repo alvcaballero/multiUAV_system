@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 470" width="960" height="470" font-family="Helvetica, Arial, sans-serif" font-size="14">
+  <title>M300 RTK: conexión del Jetson Orin Nano por el OSDK Expansion Module</title>
+  <defs>
+    <marker id="flecha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+  </defs>
+
+  <!-- fondo blanco: legible también en tema oscuro -->
+  <rect x="0" y="0" width="960" height="470" fill="#ffffff"/>
+  <text x="480" y="30" text-anchor="middle" font-size="18" font-weight="bold" fill="#111">M300 RTK · Jetson Orin Nano · OSDK Expansion Module</text>
+
+  <!-- M300 -->
+  <rect x="20" y="70" width="150" height="300" rx="10" fill="#e8eef7" stroke="#2b4c7e" stroke-width="2"/>
+  <text x="95" y="100" text-anchor="middle" font-weight="bold" fill="#2b4c7e">M300 RTK</text>
+  <text x="95" y="215" text-anchor="middle" fill="#2b4c7e">puerto</text>
+  <text x="95" y="233" text-anchor="middle" fill="#2b4c7e">OSDK</text>
+
+  <!-- Módulo -->
+  <rect x="210" y="70" width="190" height="300" rx="10" fill="#fff4e0" stroke="#b36b00" stroke-width="2"/>
+  <text x="305" y="95" text-anchor="middle" font-weight="bold" fill="#b36b00">OSDK Expansion</text>
+  <text x="305" y="113" text-anchor="middle" font-weight="bold" fill="#b36b00">Module</text>
+  <rect x="300" y="140" width="100" height="40" fill="#ffffff" stroke="#b36b00"/>
+  <text x="350" y="165" text-anchor="middle" fill="#111">UART 3,3 V</text>
+  <rect x="300" y="220" width="100" height="40" fill="#ffffff" stroke="#b36b00"/>
+  <text x="350" y="245" text-anchor="middle" fill="#111">USB 2.0</text>
+  <rect x="300" y="300" width="100" height="40" fill="#ffffff" stroke="#b36b00"/>
+  <text x="350" y="325" text-anchor="middle" fill="#111">XT30 24 V</text>
+  <line x1="170" y1="220" x2="210" y2="220" stroke="#333" stroke-width="6"/>
+  <text x="190" y="390" text-anchor="middle" font-size="12" fill="#555">cara "side B" (costura)</text>
+  <text x="190" y="405" text-anchor="middle" font-size="12" fill="#555">hacia afuera</text>
+
+  <!-- FTDI -->
+  <rect x="470" y="135" width="120" height="50" rx="6" fill="#eef7ee" stroke="#2e7d32" stroke-width="2"/>
+  <text x="530" y="157" text-anchor="middle" font-weight="bold" fill="#2e7d32">FTDI</text>
+  <text x="530" y="175" text-anchor="middle" font-size="12" fill="#2e7d32">USB-UART 3,3 V</text>
+  <line x1="400" y1="160" x2="468" y2="160" stroke="#333" stroke-width="2" marker-end="url(#flecha)"/>
+  <text x="434" y="150" text-anchor="middle" font-size="11" fill="#333">TX RX GND</text>
+
+  <!-- Step-down -->
+  <rect x="470" y="295" width="120" height="50" rx="6" fill="#fdecea" stroke="#c62828" stroke-width="2"/>
+  <text x="530" y="317" text-anchor="middle" font-weight="bold" fill="#c62828">step-down</text>
+  <text x="530" y="335" text-anchor="middle" font-size="12" fill="#c62828">24 V → 19 V</text>
+  <line x1="400" y1="320" x2="468" y2="320" stroke="#c62828" stroke-width="2" marker-end="url(#flecha)"/>
+  <text x="434" y="310" text-anchor="middle" font-size="11" fill="#c62828">24 V · 4 A</text>
+
+  <!-- Orin -->
+  <rect x="660" y="70" width="280" height="300" rx="10" fill="#f1ecf8" stroke="#5e35b1" stroke-width="2"/>
+  <text x="800" y="100" text-anchor="middle" font-weight="bold" fill="#5e35b1">Jetson Orin Nano</text>
+  <text x="800" y="118" text-anchor="middle" font-size="12" fill="#5e35b1">L4T r36.4 · Ubuntu 22.04</text>
+  <rect x="660" y="140" width="110" height="40" fill="#ffffff" stroke="#5e35b1"/>
+  <text x="715" y="165" text-anchor="middle" fill="#111">USB-A</text>
+  <text x="780" y="158" font-size="12" fill="#111">/dev/ttyUSB0</text>
+  <text x="780" y="174" font-size="12" fill="#555">921600 · comandos</text>
+  <rect x="660" y="220" width="110" height="40" fill="#ffffff" stroke="#5e35b1"/>
+  <text x="715" y="245" text-anchor="middle" fill="#111">USB (*)</text>
+  <text x="780" y="236" font-size="12" fill="#111">PSDK: bulk1, bulk2</text>
+  <text x="780" y="252" font-size="12" fill="#111">OSDK: /dev/ttyACM0</text>
+  <rect x="660" y="300" width="110" height="40" fill="#ffffff" stroke="#5e35b1"/>
+  <text x="715" y="325" text-anchor="middle" fill="#111">DC 19 V</text>
+  <text x="780" y="325" font-size="12" fill="#c62828">nunca 24 V directo</text>
+
+  <line x1="590" y1="160" x2="658" y2="160" stroke="#333" stroke-width="2" marker-end="url(#flecha)"/>
+  <text x="624" y="150" text-anchor="middle" font-size="11" fill="#333">USB</text>
+  <line x1="400" y1="240" x2="658" y2="240" stroke="#333" stroke-width="2" marker-end="url(#flecha)" marker-start="url(#flecha)"/>
+  <text x="530" y="232" text-anchor="middle" font-size="11" fill="#333">cable USB (cámaras, archivos / ConfigTool)</text>
+  <line x1="590" y1="320" x2="658" y2="320" stroke="#c62828" stroke-width="2" marker-end="url(#flecha)"/>
+
+  <!-- notas -->
+  <text x="20" y="440" font-size="12" fill="#333">(*) Puerto USB del Orin y rol (host/device) según el modo: a confirmar en el dron (ver psdk/SETUP.md § 4).</text>
+  <text x="20" y="458" font-size="12" fill="#555">Fuentes: docs de psdk_ros2 (GettingStarted), DJI device connection, manual del OSDK Expansion Module. Diagrama propio.</text>
+</svg>

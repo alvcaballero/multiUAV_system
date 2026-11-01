@@ -21,6 +21,8 @@ Lo marcado **⚠ A COMPLETAR** falta relevarlo en el dron.
 
 ## 2. Conexión
 
+![Conexión del M300 con el Jetson Orin Nano por el OSDK Expansion Module](../img/conexion.svg)
+
 ```
 M300 (puerto OSDK) ══ OSDK Expansion Module
                         ├─ UART (TX, RX, GND · 3,3 V) ── FTDI ──USB──► Jetson  → /dev/ttyUSB0  921600 baudios

@@ -12,6 +12,8 @@ Hardware común: **Jetson Orin Nano** como computadora de a bordo, conectada al 
 **OSDK Expansion Module** (o el **E-Port Development Kit**). El detalle de cables, alimentación y modos está en
 cada guía.
 
+![Conexión del M300 con el Jetson Orin Nano](img/conexion.svg)
+
 ## Estructura
 
 ```
@@ -36,6 +38,7 @@ devices/m300/
 │   ├── noetic.repos       paquetes propios (onboard_dji, simple_vs, ros_rtsp, multimaster)
 │   ├── ros_rtsp_stream_setup.yaml   streams RTSP (se monta encima del de ros_rtsp)
 │   └── tmuxinator.yml     arranque a bordo
+├── img/conexion.svg       diagrama de conexión (lo usan las dos guías)
 ├── host/                  corre en el JETSON, fuera de los contenedores
 │   ├── set_usb_mode.sh    cambia el USB del Jetson entre OSDK y PSDK
 │   └── netplan.yaml.example   red del Jetson

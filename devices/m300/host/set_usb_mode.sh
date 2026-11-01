@@ -23,8 +23,12 @@
 #   1. Guardar el script original de L4T:
 #      sudo cp /opt/nvidia/l4t-usb-device-mode/nv-l4t-usb-device-mode-start.sh \
 #              /opt/nvidia/l4t-usb-device-mode/nv-l4t-usb-device-mode-start-osdk.sh
-#   2. Copiar el script de DJI (del paquete PSDK, dentro del zip de bulk config):
-#      sudo cp startup_bulk/psdk-usb-configure.sh \
+#   2. Bajar el paquete de USB bulk de DJI (psdk-usb-configure.sh + startup_bulk) a ~/Desktop/startup_bulk:
+#      https://terra-1-g.djicdn.com/71a7d383e71a4fb8887a310eb746b47f/psdk/e-port/usb-bulk-configuration-reference.zip
+#      Antes de copiarlo, revisar en el script el nombre del UDC (ls /sys/class/udc/) y la ruta de startup_bulk:
+#      devices/m300/psdk/SETUP.md § 4 (a–d).
+#   3. Copiar el script de DJI:
+#      sudo cp ~/Desktop/startup_bulk/psdk-usb-configure.sh \
 #              /opt/nvidia/l4t-usb-device-mode/nv-l4t-usb-device-mode-start-psdk.sh
 #   Tras el primer swap, este script gestiona todo.
 

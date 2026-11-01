@@ -157,6 +157,37 @@ Tags de imagen: `muav/<rol>:<distro>` (x86 y multi-arch), `muav/m210:noetic`, `m
 - Subir el contrato Jazzy cuando salga un PX4 nuevo: `images/msgs/jazzy.repos` (`px4_msgs`) y
   `devices/px4_ros2/px4.env` JUNTOS, los topics de `px4_ros2.yaml` del GCS y `config/topics.yaml` del offboard.
 
+## Relevamiento en el hardware real (pendiente del usuario)
+
+Completa los `⚠ A COMPLETAR` / `⚠ A CONFIRMAR` de los `devices/*/SETUP.md`. Pasar la SALIDA de los comandos (ninguno
+imprime credenciales) y fotos de las conexiones; con eso se cierran las guías.
+
+**M300 + Orin Nano (PSDK, el que corre hoy).** Confirmado: Jetson = *device* con `set_usb_mode.sh psdk` (2026-11-01).
+```bash
+cat /etc/nv_tegra_release                          # versión de L4T
+ls /sys/class/udc/ ; ls /sys/class/usb_role/       # nombre del UDC (¿3550000.usb o .xudc?) y si hay role-switch
+sudo devices/m300/host/set_usb_mode.sh status      # modo, servicio, startup_bulk, endpoints
+ls -l /dev/ttyUSB* /dev/ttyACM* /dev/usb-ffs/*     # nodos con el dron encendido
+lsusb                                              # VID/PID del FTDI (para udev)
+# lo que se cambió en el script de DJI (UDC, ruta de startup_bulk):
+diff ~/Desktop/startup_bulk/psdk-usb-configure.sh /opt/nvidia/l4t-usb-device-mode/nv-l4t-usb-device-mode-start-psdk.sh
+cat devices/m300/cfg/link_config.json              # no tiene credenciales
+grep baudrate devices/m300/cfg/psdk_params.yaml    # solo esa línea
+```
+Además: baudrate configurado en DJI Assistant 2; **a qué puerto físico del Orin va el USB del módulo** y con qué cable;
+modelo y corriente del step-down 24→19 V; si se usa el E-Port Kit en algún M300; foto del montaje.
+
+**M300 OSDK:** lo mismo con `set_usb_mode.sh osdk`, y el puerto del Orin en ese modo.
+
+**M210:** modelo de Pi, step-down a 5 V, si Assistant 2 pide habilitar el control por API, `lsusb` y
+`ls -l /dev/ttyUSB* /dev/ttyACM*` con el dron encendido.
+
+**VTOL:** autopiloto y versión de PX4, qué TELEM y `MAV_<n>_CONFIG`/`SER_TEL<m>_BAUD`, adaptador USB-UART, cámara,
+alimentación de la Pi, IP fija (no tiene `host/netplan.yaml.example`).
+
+**px4_ros2:** autopiloto, companion, enlace (TELEM2 o Ethernet), alimentación, IP; valores de `UXRCE_DDS_CFG`,
+`UXRCE_DDS_NS_IDX` y `UXRCE_DDS_DOM_ID`.
+
 ## Fuera de este repo (pendientes del usuario o de otros repos)
 
 **Seguridad (urgente)** — borrar los archivos no saca los secretos de la historia de git:
@@ -204,6 +235,11 @@ Otros:
 - `px4_msgs` `main` NO es una versión: cambia la estructura sin aviso (2026-10-30: `VehicleStatus` v4 → v5). Siempre
   por commit, y el mismo PX4 en `px4.env`.
 - PX4 `Tools/copy_to_ros_ws.sh` pisa los `.msg` de `px4_msgs` con los del firmware: no usarlo sobre el contrato.
+- **M300 + Orin Nano en PSDK: el Jetson es USB *device*** (`set_usb_mode.sh psdk` + paquete de bulk de DJI), igual que
+  el M350. Aerostack2, `psdk_ros2` y la página de conexión de DJI dicen *host* para el M300: en nuestro hardware
+  NO (confirmado por el usuario, 2026-11-01). No "simplificar" `set_usb_mode.sh` por esas fuentes.
+- Scripts de bulk de DJI y Aerostack2: buscan el UDC `3550000.xudc` (un Orin Nano con JetPack 6 tenía `3550000.usb`)
+  y traen escrita la ruta de `startup_bulk` (`/home/dji/…`, `/home/cvar/…`). Revisarlos antes de copiarlos.
 - PX4 `Tools/setup/ubuntu.sh` usa `sudo` y NO detecta Docker solo (`RUNS_IN_DOCKER` lo pasa quien lo llama): las
   bases `ros:*` traen `sudo`, así que funciona sin esa variable.
 - devcontainer.json NO anida variables: `${localEnv:X:${localWorkspaceFolder}/…}` sale roto (probado con el CLI

@@ -67,6 +67,6 @@
   <line x1="590" y1="320" x2="658" y2="320" stroke="#c62828" stroke-width="2" marker-end="url(#flecha)"/>
 
   <!-- notas -->
-  <text x="20" y="440" font-size="12" fill="#333">(*) Puerto USB del Orin y rol (host/device) según el modo: a confirmar en el dron (ver psdk/SETUP.md § 4).</text>
+  <text x="20" y="440" font-size="12" fill="#333">(*) PSDK: el Orin es device USB (host/set_usb_mode.sh psdk + paquete de bulk de DJI). Puerto físico: a completar.</text>
   <text x="20" y="458" font-size="12" fill="#555">Fuentes: docs de psdk_ros2 (GettingStarted), DJI device connection, manual del OSDK Expansion Module. Diagrama propio.</text>
 </svg>

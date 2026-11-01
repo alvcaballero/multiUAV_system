@@ -1,5 +1,7 @@
 # VTOL — PX4 por mavros, Raspberry Pi (arm64, sin GPU)
 
+**Conexión de hardware y puesta en marcha paso a paso: [`SETUP.md`](SETUP.md).**
+
 ROS 1 **Noetic**. Es el dispositivo `px4_mavros` del plan. Antes corría **nativo** en la Pi. Ahora va en contenedor
 sobre la misma `muav/base:noetic` del GCS (multi-arch, apt de Noetic para Ubuntu 20.04 arm64).
 

@@ -16,8 +16,9 @@ images/                       lo COMPARTIDO, un Dockerfile por rol con ARG ROS_D
   dev/                        desarrollo: bridge dentro, PX4 SITL con código (Gazebo 11 en noetic, Harmonic + Agent
                               XRCE en humble y jazzy), drones falsos ROS 1 (mock/). humble = px4_ros2_docker
   build.sh <distro>           construye base → msgs → bridge → dev
-devices/                      un dispositivo por carpeta, con TODO lo suyo (Dockerfile, .repos, tmuxinator, README)
-  m300/                       DJI M300 (Jetson Orin Nano): PSDK/Humble y OSDK/Noetic
+devices/                      un dispositivo por carpeta, con TODO lo suyo (Dockerfile, .repos, tmuxinator, README,
+                              SETUP.md = conexión de hardware y puesta en marcha)
+  m300/                       DJI M300 (Jetson Orin Nano): psdk/ (Humble) y osdk/ (Noetic), cada uno con su SETUP.md
   m210/                       DJI M210 (Raspberry Pi): OSDK/Noetic
   vtol/                       PX4 por mavros (Raspberry Pi): Noetic
   px4_ros2/                   PX4 por uXRCE-DDS (companion x86/arm64): Jazzy, translation node opcional

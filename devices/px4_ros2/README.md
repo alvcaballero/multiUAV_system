@@ -4,6 +4,8 @@ PX4 habla uORB ↔ DDS con su cliente uXRCE-DDS; en la companion corren el **Age
 (`MUAV_px4_offboard`) y, si hace falta, el **translation node**. El GCS lo ve por `bridge:jazzy` (rosbridge, interfaz
 `px4_ros2`) o por MQTT (`mqtt_client`).
 
+**Conexión de hardware, parámetros del firmware y puesta en marcha paso a paso: [`SETUP.md`](SETUP.md).**
+
 | Archivo | Qué es |
 |---|---|
 | `Dockerfile` | Sobre `muav/base:jazzy` (multi-arch). Contrato + `jazzy.repos` + translation node, compila solo lo que piden |

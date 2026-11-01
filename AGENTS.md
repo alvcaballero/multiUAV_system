@@ -23,8 +23,10 @@ images/                  compartido, un Dockerfile por rol con ARG ROS_DISTRO (n
   bridge/                rosbridge del GCS (+ multimaster en noetic)
   dev/                   desarrollo: herramientas + PX4 SITL + Gazebo; el código va en /ws (host)
   build.sh <distro>      base → msgs → bridge → dev (y genera el devcontainer)
-devices/<x>/             un dron por carpeta con TODO lo suyo: Dockerfile, <distro>.repos, tmuxinator, README, cfg/
-  m300/ m210/ vtol/ px4_ros2/ common/
+devices/<x>/             un dron por carpeta con TODO lo suyo: Dockerfile, <distro>.repos, tmuxinator, README, cfg/,
+                         SETUP.md (conexión de hardware + puesta en marcha)
+  m300/                  dos perfiles: base/ (OpenCV CUDA), psdk/ y osdk/ (cada uno con su SETUP.md), host/
+  m210/ vtol/ px4_ros2/ common/
 .devcontainer/           plantilla + generate.sh; <distro>/ es generado y gitignored
 container_run.sh         dev | bridge <distro>, o un dispositivo
 ws/<distro>/             workspaces de desarrollo (gitignored), montados en /ws
@@ -53,6 +55,12 @@ multiuav_gui/            GCS (submódulo): tiene su propio CLAUDE.md
 - Un mensaje nuevo se declara UNA vez, en `images/msgs/<distro>.repos`. El contrato PX4 de Jazzy son dos archivos
   que se suben JUNTOS: `px4_msgs` en `images/msgs/jazzy.repos` y el commit de PX4 en `devices/px4_ros2/px4.env`.
 - Un dispositivo compila SOLO lo que piden sus `package.xml` (`--packages-up-to` / `--only-pkg-with-deps`).
+
+**Guías de hardware (`SETUP.md`)**
+- Mismo orden en todas: materiales → conexión → firmware/dron → host → software → arranque → verificación → problemas.
+- Solo datos con fuente (docs del fabricante, código, configs del repo, confirmación del usuario). Lo que no está
+  relevado va como `⚠ A COMPLETAR` / `⚠ A CONFIRMAR`, nunca inventado: un pinout o una tensión equivocados
+  queman hardware.
 
 **Credenciales**
 - Solo `cfg/*.example` va a git; lo real vive en `devices/<x>/cfg/` (gitignored). Nunca imprimas una credencial:
@@ -90,7 +98,7 @@ vcs import ws/humble/src < images/dev/humble.repos   # código de partida (PSDK)
 vcs import ws/jazzy/src  < devices/px4_ros2/jazzy.repos
 /opt/muav/ws_rosdep.sh                               # dentro de dev: dependencias de /ws/src
 devices/<x>/container_build.sh                       # EN el dron (Jetson, Pi, companion)
-tmuxinator start -p devices/<x>/tmuxinator.yml -h    # parámetros de cada dron (M300: tmuxinator_{osdk,psdk}.yml)
+tmuxinator start -p devices/<x>/tmuxinator.yml -h    # parámetros de cada dron (M300: devices/m300/{psdk,osdk}/)
 ```
 
 ## Trampas que más muerden

@@ -2,6 +2,8 @@
 
 Perfil **OSDK**, ROS 1 **Noetic**. Sin Melodic: todos los M210 están en Noetic (confirmado 2026-10-31).
 
+**Conexión de hardware y puesta en marcha paso a paso: [`SETUP.md`](SETUP.md).**
+
 Antes corría **nativo** en la Pi. Ahora va en contenedor, sobre la misma `muav/base:noetic` del GCS: la Pi tiene
 Ubuntu 20.04 y Noetic tiene apt para arm64, así que no hace falta compilar ROS desde fuentes como en el Jetson del M300.
 

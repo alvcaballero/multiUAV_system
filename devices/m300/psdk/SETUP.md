@@ -18,7 +18,7 @@ Lo marcado **⚠ A COMPLETAR** falta relevarlo en el dron.
 | *o* **E-Port Development Kit** | DJI lo lista para el puerto OSDK del M300; `psdk_ros2` no lo validó en el M300. ⚠ A COMPLETAR: conexión y `link_config` con este kit |
 | Adaptador USB-UART (FTDI) | **3,3 V**: el serial del M300 y del módulo es de 3,3 V (DJI) |
 | Cable USB A-A | Del USB del módulo al Jetson |
-| Step-down | El módulo entrega **24 V**. ⚠ A COMPLETAR: modelo y tensión de salida para el Orin Nano |
+| Step-down **24 V → 19 V** | El módulo entrega 24 V y el Orin Nano se alimenta a 19 V. ⚠ A COMPLETAR: modelo |
 
 ## 2. Conexión
 
@@ -27,7 +27,7 @@ M300 (puerto OSDK) ══ OSDK Expansion Module
                         ├─ UART (TX, RX, GND · 3,3 V) ── FTDI ──USB──► Jetson  → /dev/ttyUSB0   comandos y telemetría
                         ├─ USB 2.0 ──────────── cable USB A-A ───────► Jetson  → /dev/usb-ffs/bulk1, bulk2
                         │                                                        cámaras y archivos (USB bulk)
-                        └─ XT30 · 24 V ── step-down ⚠ ─────────────► alimentación del Jetson
+                        └─ XT30 · 24 V ── step-down 24→19 V ───────► alimentación del Jetson (19 V)
 ```
 
 1. Montar el módulo en el puerto OSDK: **la cara del cable con la costura ("side B") hacia afuera** (DJI).
@@ -35,7 +35,8 @@ M300 (puerto OSDK) ══ OSDK Expansion Module
 3. USB A-A del módulo al Jetson. En modo PSDK el Jetson actúa como **dispositivo USB** (gadget con dos endpoints
    bulk), así que el cable va al puerto del Orin que admite modo *device*.
    ⚠ A COMPLETAR: qué puerto físico del Orin Nano es.
-4. Alimentación: XT30 del módulo (24 V, 4 A nominales) → step-down → Jetson.
+4. Alimentación: XT30 del módulo (24 V, 4 A nominales) → step-down **24 V → 19 V** → Jetson. Nunca los 24 V
+   directo al Orin.
 
 > **Cuidado (docs de `psdk_ros2`)**: el OSDK Expansion Module saca **24 V**. Verificá que la computadora lo tolere o
 > poné un step-down. Si armás un cable propio, DJI pide usar los **4 pines VCC** a la vez.

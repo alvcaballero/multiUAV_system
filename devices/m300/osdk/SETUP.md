@@ -17,7 +17,7 @@ Lo marcado **⚠ A COMPLETAR** falta relevarlo en el dron.
 | **OSDK Expansion Module** | El mismo módulo que en PSDK. *O* el E-Port Development Kit: ⚠ A COMPLETAR, sin probar con OSDK acá |
 | Adaptador USB-UART (FTDI) | **3,3 V** (DJI: el serial del M300 y del módulo es de 3,3 V) |
 | Cable USB | Del USB 2.0 del módulo al Jetson |
-| Step-down | El módulo entrega **24 V**. ⚠ A COMPLETAR: modelo y tensión de salida para el Orin Nano |
+| Step-down **24 V → 19 V** | El módulo entrega 24 V y el Orin Nano se alimenta a 19 V. ⚠ A COMPLETAR: modelo |
 
 ## 2. Conexión
 
@@ -25,14 +25,15 @@ Lo marcado **⚠ A COMPLETAR** falta relevarlo en el dron.
 M300 (puerto OSDK) ══ OSDK Expansion Module
                         ├─ UART (TX, RX, GND · 3,3 V) ── FTDI ──USB──► Jetson  → /dev/ttyUSB0  921600 baudios
                         ├─ USB 2.0 ───────────────────────────────────► Jetson  → /dev/ttyACM0  ConfigTool, vídeo
-                        └─ XT30 · 24 V ── step-down ⚠ ─────────────► alimentación del Jetson
+                        └─ XT30 · 24 V ── step-down 24→19 V ───────► alimentación del Jetson (19 V)
 ```
 
 1. Módulo en el puerto OSDK: **la cara del cable con la costura ("side B") hacia afuera** (DJI).
 2. FTDI a los pines UART del módulo (el RX del módulo recibe lo que transmite el dron) y al USB del Jetson.
 3. USB del módulo al Jetson. Acá el **módulo es el dispositivo USB y el Jetson el host** (DJI), al revés que en PSDK.
    ⚠ A COMPLETAR: a qué puerto del Orin va el cable en este modo.
-4. Alimentación: XT30 del módulo (24 V, 4 A nominales) → step-down → Jetson. Si armás un cable propio, DJI pide usar
+4. Alimentación: XT30 del módulo (24 V, 4 A nominales) → step-down **24 V → 19 V** → Jetson. Nunca los 24 V
+   directo al Orin. Si armás un cable propio, DJI pide usar
    los **4 pines VCC** a la vez. El pin ON_DET va usado, RSVD1 al aire y RSVD2 a GND (manual, p. 14).
 
 ## 3. Configuración del dron (una vez)

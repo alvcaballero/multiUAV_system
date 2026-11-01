@@ -1,8 +1,9 @@
-# M300 por OSDK (Jetson Orin Nano, L4T r36.4, arm64). Cadena: Dockerfile.opencv → Dockerfile.ros1 → este.
+# M300 por OSDK (Jetson Orin Nano, L4T r36.4, arm64). Cadena: base/Dockerfile.opencv → osdk/Dockerfile.ros1 → este.
+# Conexión y puesta en marcha: osdk/SETUP.md.
 # Build context: la RAÍZ del repo (container_build.sh), para leer el contrato images/msgs/noetic.repos.
 #
 # OSDK = ROS 1 Noetic, y solo Noetic (desde fuentes: Noetic no tiene apt para Jammy, ver Dockerfile.ros1).
-# Workspace /root/app_ws: versiones del contrato (images/msgs/noetic.repos) + propios (devices/m300/noetic.repos).
+# Workspace /root/app_ws: versiones del contrato (images/msgs/noetic.repos) + propios (devices/m300/osdk/noetic.repos).
 # Se compila SOLO lo que piden los paquetes del M300 (--only-pkg-with-deps), igual que el perfil PSDK.
 ARG IMAGE_NAME=ros-noetic:l4t-r36.4.0
 FROM ${IMAGE_NAME}
@@ -53,13 +54,13 @@ RUN /tmp/install_osdk.sh ${OSDK_VERSION}
 WORKDIR /root/app_ws
 # Mismo nombre en origen (noetic.repos): se copian con el nombre de su rol para no pisarse.
 COPY images/msgs/noetic.repos /root/app_ws/repos/contract.repos
-COPY devices/m300/noetic.repos /root/app_ws/repos/device.repos
+COPY devices/m300/osdk/noetic.repos /root/app_ws/repos/device.repos
 RUN mkdir -p src/external \
     && vcs import --input repos/contract.repos src \
     && vcs import --input repos/device.repos src
 
 SHELL ["/bin/bash", "-c"]
-# OpenCV_DIR: el OpenCV CUDA de Dockerfile.opencv, no el de pip.
+# OpenCV_DIR: el OpenCV CUDA de base/Dockerfile.opencv, no el de pip.
 # dji_osdk_ros va COMPLETO (sin ONBOARD_SDK_ROS_ONLY_INTERFACES): aquí sí está el Onboard-SDK.
 RUN source /root/catkin_ws/install/setup.bash && \
     catkin_make --only-pkg-with-deps ${DEVICE_PACKAGES} \

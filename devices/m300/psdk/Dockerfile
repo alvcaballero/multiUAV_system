@@ -1,9 +1,10 @@
-# M300 por PSDK (Jetson Orin Nano, L4T r36.4, arm64). Cadena: Dockerfile.opencv → Dockerfile.ros2 → este.
+# M300 por PSDK (Jetson Orin Nano, L4T r36.4, arm64). Cadena: base/Dockerfile.opencv → psdk/Dockerfile.ros2 → este.
+# Conexión y puesta en marcha: psdk/SETUP.md.
 # Build context: la RAÍZ del repo (container_build.sh), para leer el contrato images/msgs/humble.repos.
 #
 # PSDK = ROS 2 Humble, y solo Humble: psdk_ros2 está probado solo en Humble y L4T r36.4 es Ubuntu 22.04 (Jazzy
 # solo tiene apt para 24.04). El M300 no tiene perfil Jazzy.
-# Workspace /root/psdk_ws: versiones del contrato (images/msgs/humble.repos) + propios (devices/m300/humble.repos).
+# Workspace /root/psdk_ws: versiones del contrato (images/msgs/humble.repos) + propios (devices/m300/psdk/humble.repos).
 # Se compila SOLO lo que necesitan los paquetes del M300 (--packages-up-to): sus package.xml deciden qué mensajes
 # entran. px4_msgs se clona (está en el contrato) pero no se compila. Misma versión que bridge:humble en lo que
 # comparten, sin heredar una imagen x86 (decisión 6).
@@ -71,7 +72,7 @@ RUN git clone -b n4.3.2 https://github.com/FFmpeg/FFmpeg.git && \
 WORKDIR /root/psdk_ws
 # Mismo nombre en origen (humble.repos): se copian con el nombre de su rol para no pisarse.
 COPY images/msgs/humble.repos /root/psdk_ws/repos/contract.repos
-COPY devices/m300/humble.repos /root/psdk_ws/repos/device.repos
+COPY devices/m300/psdk/humble.repos /root/psdk_ws/repos/device.repos
 RUN mkdir -p src \
     && vcs import --input repos/contract.repos src \
     && vcs import --input repos/device.repos src
@@ -89,7 +90,7 @@ RUN source /opt/ros/humble/setup.bash \
 
 RUN echo "source /root/psdk_ws/install/setup.bash" >> /root/.bashrc
 
-COPY devices/m300/entrypoint_psdk.sh /root/entrypoint_psdk.sh
+COPY devices/m300/psdk/entrypoint.sh /root/entrypoint_psdk.sh
 RUN chmod +x /root/entrypoint_psdk.sh
 
 WORKDIR /root

@@ -1,5 +1,5 @@
 # Paquetes PROPIOS del M300 en ROS 2 Humble (perfil PSDK). Se importan junto al contrato images/msgs/humble.repos.
-# Un .repos por distro, como el contrato: noetic.repos (perfil OSDK) llega en R2. No hay jazzy: ver Dockerfile.psdk.
+# Un .repos por distro, como el contrato: osdk/noetic.repos es el perfil OSDK. No hay jazzy: ver psdk/Dockerfile.
 # psdk_wrapper NO está aquí: sale del mismo checkout de psdk_ros2 que ya trae el contrato (mismo commit que
 # psdk_interfaces, imposible que se desincronicen).
 # Versiones fijadas por COMMIT (decisión 12).

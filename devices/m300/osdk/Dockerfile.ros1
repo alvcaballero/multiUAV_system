@@ -111,12 +111,12 @@ RUN python3 -m pip install --upgrade pip && \
 #     rm -rf /var/lib/apt/lists/*
 
 # 4. Prepare ROS Workspace and import sources
-# Antes: ~40 `git clone` aquí, varios por RAMA. Ahora fijados en devices/m300/noetic_ros.repos (decisión 12).
+# Antes: ~40 `git clone` aquí, varios por RAMA. Ahora fijados en devices/m300/osdk/ros1.repos (decisión 12).
 # Build context: la RAÍZ del repo (container_build.sh).
 RUN mkdir -p /root/catkin_ws/src
 WORKDIR /root/catkin_ws
-COPY devices/m300/noetic_ros.repos /root/catkin_ws/noetic_ros.repos
-RUN vcs import --input noetic_ros.repos src
+COPY devices/m300/osdk/ros1.repos /root/catkin_ws/ros1.repos
+RUN vcs import --input ros1.repos src
 
 # Clone ZED ROS1 Wrapper (recursively to get zed-ros-interfaces)
 # RUN git clone --recursive https://github.com/stereolabs/zed-ros-wrapper.git

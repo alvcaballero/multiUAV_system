@@ -8,15 +8,15 @@ set -e
 
 TARGET=${1:-all}
 HERE="$(cd "$(dirname "$0")" && pwd)"
-ROOT="$(cd "$HERE/../.." && pwd)"   # build context: raíz del repo (leen images/msgs/*.repos y devices/m300/*.repos)
+ROOT="$(cd "$HERE/../.." && pwd)"   # build context: raíz del repo (leen images/msgs/*.repos y devices/m300/*/*.repos)
 
 build() { docker build -t "$1" -f "$HERE/$2" "$ROOT"; }
 
-build_opencv() { build opencv-cuda:l4t-r36.4.0     Dockerfile.opencv; }
-build_ros2()   { build ros-humble:l4t-r36.4.0      Dockerfile.ros2; }
-build_psdk()   { build ros-humble-psdk:l4t-r36.4.0 Dockerfile.psdk; }
-build_ros1()   { build ros-noetic:l4t-r36.4.0      Dockerfile.ros1; }
-build_osdk()   { build ros-noetic-osdk:l4t-r36.4.0 Dockerfile.osdk; }
+build_opencv() { build opencv-cuda:l4t-r36.4.0     base/Dockerfile.opencv; }
+build_ros2()   { build ros-humble:l4t-r36.4.0      psdk/Dockerfile.ros2; }
+build_psdk()   { build ros-humble-psdk:l4t-r36.4.0 psdk/Dockerfile; }
+build_ros1()   { build ros-noetic:l4t-r36.4.0      osdk/Dockerfile.ros1; }
+build_osdk()   { build ros-noetic-osdk:l4t-r36.4.0 osdk/Dockerfile; }
 
 case "$TARGET" in
     opencv) build_opencv ;;

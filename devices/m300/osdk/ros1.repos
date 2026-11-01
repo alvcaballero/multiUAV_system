@@ -1,5 +1,5 @@
 # ROS 1 Noetic DESDE FUENTES para el Jetson (L4T r36.4 = Ubuntu 22.04: Noetic no tiene apt para Jammy).
-# Lo importa Dockerfile.ros1. Antes eran ~40 `git clone` dentro del Dockerfile, varios por RAMA: ahora todo fijado
+# Lo importa osdk/Dockerfile.ros1. Antes eran ~40 `git clone` dentro del Dockerfile, varios por RAMA: ahora todo fijado
 # (decisión 12). Los que tenían tag lo conservan; los que iban por rama están en el commit de esa rama al
 # 2026-10-31 (indicado en el comentario).
 # Las claves son los nombres de directorio que creaba `git clone`: Dockerfile.ros1 mueve src/image_transport_plugins.

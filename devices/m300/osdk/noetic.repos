@@ -24,7 +24,7 @@ repositories:
     url: https://github.com/fkie/multimaster_fkie.git
     version: 143f8e44055d3543d9bc1c2ebfe34487b32ebcc5   # noetic-devel
 
-  # Vídeo: resize de la cámara principal (simple_vs) → RTSP (ros_rtsp). Config de streams: config/ros_rtsp_stream_setup.yaml
+  # Vídeo: resize de la cámara principal (simple_vs) → RTSP (ros_rtsp). Config de streams: osdk/ros_rtsp_stream_setup.yaml
   simple_vs:
     type: git
     url: https://github.com/miggilcas/simple_vs.git

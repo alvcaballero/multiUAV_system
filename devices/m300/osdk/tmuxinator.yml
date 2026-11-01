@@ -1,5 +1,5 @@
 # M300 por OSDK (ROS 1 Noetic). Origen: ~/work/M300/app_ros1/M300-RosRTSP.yml.
-#   MUAV_HOSTS=<gcs> tmuxinator start -p devices/m300/tmuxinator_osdk.yml [ns=uav_14] [mode=real|sim] [sys=~/multiUAV_system]
+#   MUAV_HOSTS=<gcs> tmuxinator start -p devices/m300/osdk/tmuxinator.yml [ns=uav_14] [mode=real|sim] [sys=~/multiUAV_system]
 # MUAV_HOSTS: el/los GCS para el multimaster (antes, escritos en onboard_dji/launch/multimaster-noetic.launch).
 # El vídeo (simple_vs + ros_rtsp) ya lo lanza run_M300-rtsp.launch.
 <%

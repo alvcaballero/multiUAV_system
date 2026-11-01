@@ -7,7 +7,7 @@ CFG_DIR=/root/cfg
 for f in psdk_params.yaml link_config.json; do
     if [ ! -f "$CFG_DIR/$f" ]; then
         echo "[entrypoint_psdk] ERROR: falta $CFG_DIR/$f" >&2
-        echo "[entrypoint_psdk]   cp devices/m300/cfg/$f.example devices/m300/cfg/$f   # y completar" >&2
+        echo "[entrypoint_psdk]   cp devices/m300/cfg/$f.example devices/m300/cfg/$f   # y completar (psdk/SETUP.md)" >&2
         exit 1
     fi
 done

@@ -12,7 +12,7 @@ repositories:
     url: https://github.com/arpoma16/psdk_ros2.git
     version: 8b65dd5d80844af0cd331a0dd78b026c722452d4   # dev/integration
 
-  # Nodos a bordo del M300 por PSDK: el mismo commit que devices/m300/humble.repos.
+  # Nodos a bordo del M300 por PSDK: el mismo commit que devices/m300/psdk/humble.repos.
   MUAV_psdk_offboard:
     type: git
     url: https://github.com/arpoma16/MUAV_psdk_offboard.git

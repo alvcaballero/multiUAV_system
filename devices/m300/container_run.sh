@@ -4,7 +4,8 @@
 #     psdk          ROS 2 Humble. UART + USB bulk (vídeo de alta velocidad vía functionfs)
 #     psdk --no-bulk  solo UART, sin endpoints bulk
 #     osdk          ROS 1 Noetic. UART + ACM (MUAV_HOSTS = el/los GCS, para el multimaster)
-# PSDK y OSDK son excluyentes: el gadget USB del Jetson está en un modo u otro (set_usb_mode.sh).
+# PSDK y OSDK son excluyentes: el gadget USB del Jetson está en un modo u otro (host/set_usb_mode.sh).
+# Guías de conexión y puesta en marcha: psdk/SETUP.md, osdk/SETUP.md.
 # La config real (credenciales DJI) vive en devices/m300/cfg/ (gitignored) y se monta en /root/cfg.
 # Para desarrollar a bordo: M300_DEV_SRC=<dir> monta ese dir en <workspace>/src/external.
 set -e
@@ -60,7 +61,7 @@ check_bulk_endpoints() {
         fi
     done
     if [ "$missing" -eq 1 ]; then
-        echo "  Ejecutá primero en el host: sudo $HERE/set_usb_mode.sh psdk --now"
+        echo "  Ejecutá primero en el host: sudo $HERE/host/set_usb_mode.sh psdk --now"
         exit 1
     fi
     if ! pgrep -x startup_bulk > /dev/null 2>&1; then
@@ -101,7 +102,7 @@ if [ "$SDK" = psdk ] && [ "$NO_BULK" -eq 0 ]; then
 fi
 if [ "$SDK" = osdk ]; then
     # ros_rtsp lee $(find ros_rtsp)/config/stream_setup.yaml sin argumento para cambiarla: se monta encima.
-    DOCKER_ARGS+=(-v "$HERE/config/ros_rtsp_stream_setup.yaml":"$WS/src/ros_rtsp/config/stream_setup.yaml":ro)
+    DOCKER_ARGS+=(-v "$HERE/osdk/ros_rtsp_stream_setup.yaml":"$WS/src/ros_rtsp/config/stream_setup.yaml":ro)
 fi
 if [ -n "$M300_DEV_SRC" ]; then
     DOCKER_ARGS+=(-v "$M300_DEV_SRC":"$WS/src/external")

@@ -13,7 +13,8 @@
 #   /opt/nvidia/l4t-usb-device-mode/nv-l4t-usb-device-mode-start-psdk.sh    ← script de DJI PSDK
 #
 # USO:
-#   sudo ./set_usb_mode.sh [osdk|psdk] [--now]
+#   sudo devices/m300/host/set_usb_mode.sh [osdk|psdk] [--now]
+#   Corre en el HOST (el Jetson), no en el contenedor. Contexto completo: psdk/SETUP.md y osdk/SETUP.md.
 #
 #   --now  Aplica el modo en caliente sin reboot (via systemctl restart).
 #          Si el servicio L4T no existe, cae en reboot interactivo igual que antes.

@@ -1,5 +1,5 @@
 # M300 por PSDK (ROS 2 Humble). Origen: ~/work/M300/app_ros2/M300-PSDK-ROS2.yml.
-#   tmuxinator start -p devices/m300/tmuxinator_psdk.yml [ns=uav_16] [sys=~/multiUAV_system]
+#   tmuxinator start -p devices/m300/psdk/tmuxinator.yml [ns=uav_16] [sys=~/multiUAV_system]
 <%
 default_ns  = 'uav_16'
 default_sys = '~/multiUAV_system'
